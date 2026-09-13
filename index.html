@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>DOGS PIRATES 🏴‍☠️</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+    <script src='//libtl.com/sdk.js' data-zone='11687712' data-sdk='show_11687712'></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div id="app-loader" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0A0A0A;gap:16px;">
+    <img src="https://i.ibb.co/m5JD7vwy/In-Collage.png" style="width:80px;height:80px;border-radius:50%;border:2px solid #3B82F6;object-fit:cover;">
+    <div style="color:#FFFFFF;font-weight:700;font-size:1.1rem;letter-spacing:2px;">DOGS PIRATES</div>
+</div>
+
+<div id="device-verification-modal" class="modal" style="display:none;">
+    <div class="modal-content blue-modal" style="max-width:340px;width:90%;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);padding:0;">
+        <div class="modal-header blue-header" style="padding:16px 20px;border-bottom:1px solid rgba(59,130,246,0.1);">
+            <h3 style="color:#60A5FA;font-size:1.1rem;display:flex;align-items:center;gap:10px;margin:0;"><i class="fas fa-shield-alt" style="color:#3B82F6;"></i> New Device Detected</h3>
+            <button class="modal-close" onclick="document.getElementById('device-verification-modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <p style="text-align:center;color:#888;font-size:0.85rem;margin-bottom:16px;">
+                A verification code was sent to your Telegram.<br>
+                Please enter it below to continue.
+            </p>
+            <div class="form-group">
+                <input type="text" id="device-verify-input" class="form-input blue-input" placeholder="— — — — — —" maxlength="6" autocomplete="off" style="text-align:center;font-size:1.6rem;letter-spacing:12px;padding:14px 16px;width:100%;background:rgba(0,0,0,0.4);border:1px solid rgba(59,130,246,0.2);border-radius:60px;color:white;font-weight:600;">
+            </div>
+            <button id="device-verify-btn" class="blue-btn" style="width:100%;padding:14px;border:none;border-radius:60px;font-weight:700;font-size:1rem;cursor:pointer;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;">Verify Device</button>
+            <div id="device-verify-error" style="color:#EF4444;text-align:center;margin-top:10px;font-size:0.85rem;display:none;"></div>
+            <button id="device-resend-btn" style="background:transparent;color:#666;margin-top:8px;font-size:0.7rem;padding:8px;border:none;cursor:pointer;width:100%;text-align:center;">Resend Code</button>
+        </div>
+    </div>
+</div>
+
+<div id="ban-modal" class="modal" style="display:none;">
+    <div class="modal-content glass-modal modern-modal blue-modal" style="max-width:320px;width:90%;margin:0 auto;position:relative;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);box-shadow:0 8px 40px rgba(0,0,0,0.8);text-align:center;padding:30px 24px;">
+        <div style="font-size:60px;margin-bottom:16px;">🚫</div>
+        <h3 style="color:#EF4444;font-size:1.3rem;font-weight:700;margin-bottom:8px;">Account Banned</h3>
+        <p style="color:#888;font-size:0.95rem;margin-bottom:20px;line-height:1.5;">
+            Your account has been banned.<br>
+            Please contact support for more information.
+        </p>
+        <button id="close-app-btn" class="blue-btn" style="padding:12px 40px;background:linear-gradient(135deg,#3B82F6,#2563EB);border:none;border-radius:60px;color:#FFFFFF;font-weight:700;font-size:1rem;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 20px rgba(59,130,246,0.3);">
+            <i class="fas fa-times"></i> Close App
+        </button>
+    </div>
+</div>
+
+<div id="app" style="display:none;">
+    <header class="app-header pirate-header">
+        <div class="header-top">
+            <div class="user-info">
+                <div class="avatar-wrapper">
+                    <img id="user-photo" class="user-avatar" src="https://i.ibb.co/m5JD7vwy/In-Collage.png">
+                    <div class="avatar-badge level-badge blue-badge" id="user-level-badge">1</div>
+                </div>
+                <div class="user-details">
+                    <span id="user-name" class="user-name">User</span>
+                    <div class="user-level blue-text"><i class="fas fa-crown"></i> <span id="user-level-text">Level</span> <span id="user-level">1</span></div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="header-balances" id="header-balances">
+                    <div class="header-balance" id="header-power"><i class="fas fa-bolt"></i> 0</div>
+                    <div class="header-balance" id="header-dogs"><img src="https://i.ibb.co/m5JD7vwy/In-Collage.png" style="width:14px;height:14px;border-radius:50%;object-fit:cover;"> 0</div>
+                </div>
+                <button id="lang-btn" class="header-icon-btn lang-btn"><img id="current-flag" src="https://flagcdn.com/w40/gb.png" style="width:24px;height:16px;border-radius:4px;object-fit:cover;border:1px solid rgba(59,130,246,0.15);"></button>
+            </div>
+        </div>
+    </header>
+
+    <div id="lang-menu" class="lang-menu" style="display:none;">
+        <div class="lang-menu-content">
+            <button class="lang-option" data-lang="en"><img src="https://flagcdn.com/w40/gb.png" style="width:24px;height:16px;border-radius:4px;object-fit:cover;"></button>
+            <button class="lang-option" data-lang="ar"><img src="https://flagcdn.com/w40/sa.png" style="width:24px;height:16px;border-radius:4px;object-fit:cover;"></button>
+            <button class="lang-option" data-lang="ru"><img src="https://flagcdn.com/w40/ru.png" style="width:24px;height:16px;border-radius:4px;object-fit:cover;"></button>
+            <button class="lang-option" data-lang="fa"><img src="https://flagcdn.com/w40/ir.png" style="width:24px;height:16px;border-radius:4px;object-fit:cover;"></button>
+        </div>
+    </div>
+
+    <main id="main-content">
+        <div id="mining-page" class="page active"></div>
+        <div id="earn-page" class="page"></div>
+        <div id="team-page" class="page"></div>
+        <div id="wallet-page" class="page"></div>
+    </main>
+
+    <nav class="bottom-nav pirate-nav">
+        <button class="nav-btn active" data-page="mining-page"><i class="fas fa-anchor"></i><span id="nav-mining">Mining</span></button>
+        <button class="nav-btn" data-page="earn-page"><i class="fas fa-coins"></i><span id="nav-earn">Earn</span></button>
+        <button class="nav-btn" data-page="team-page"><i class="fas fa-user-tie"></i><span id="nav-team">Pirates</span></button>
+        <button class="nav-btn" data-page="wallet-page"><i class="fas fa-money-bill"></i><span id="nav-wallet">Wallet</span></button>
+    </nav>
+</div>
+
+<div id="add-social-task-modal" class="modal" style="display:none;">
+    <div class="modal-content blue-modal" style="max-width:400px;width:92%;max-height:90vh;overflow-y:auto;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);padding:0;">
+        <div class="modal-header blue-header" style="padding:16px 20px;border-bottom:1px solid rgba(59,130,246,0.1);">
+            <h3 style="color:#60A5FA;font-size:1.1rem;display:flex;align-items:center;gap:10px;margin:0;"><i class="fas fa-plus-circle" style="color:#3B82F6;"></i> Add Social Task</h3>
+            <button class="modal-close" onclick="document.getElementById('add-social-task-modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <div class="form-group">
+                <label class="form-label">Name (5-20 chars)</label>
+                <input type="text" id="social-task-name" class="form-input blue-input" placeholder="Task name" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Link</label>
+                <input type="text" id="social-task-link" class="form-input blue-input" placeholder="https://t.me/...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Total</label>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                    <button class="total-option" data-value="100" style="padding:6px 14px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">100</button>
+                    <button class="total-option" data-value="250" style="padding:6px 14px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">250</button>
+                    <button class="total-option" data-value="500" style="padding:6px 14px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">500</button>
+                    <button class="total-option" data-value="1000" style="padding:6px 14px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">1000</button>
+                    <button class="total-option" data-value="custom" style="padding:6px 14px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">Custom</button>
+                    <input type="number" id="social-task-total-custom" class="form-input blue-input" placeholder="Enter total" style="display:none;width:120px;padding:6px 12px;font-size:0.7rem;height:32px;" min="100" max="5000">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reward (Power)</label>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button class="reward-option" data-value="10" style="padding:6px 14px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">10</button>
+                    <button class="reward-option" data-value="25" style="padding:6px 14px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">25</button>
+                    <button class="reward-option" data-value="50" style="padding:6px 14px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">50</button>
+                    <button class="reward-option" data-value="100" style="padding:6px 14px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">100</button>
+                </div>
+            </div>
+            <div class="form-group" id="verification-group" style="display:none;">
+                <label class="form-label">Verification</label>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <button class="verif-option" data-value="yes" style="padding:6px 18px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">YES</button>
+                    <button class="verif-option" data-value="no" style="padding:6px 18px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">NO</button>
+                    <span id="verification-note" style="font-size:0.6rem;color:#3B82F6;display:none;margin-left:4px;"><i class="fas fa-info-circle"></i> You must add the bot as admin to verify membership</span>
+                </div>
+            </div>
+            <div style="background:rgba(59,130,246,0.08);border-radius:12px;padding:12px;margin:12px 0;border:1px solid rgba(59,130,246,0.08);">
+                <div style="display:flex;justify-content:space-between;font-size:0.8rem;">
+                    <span style="color:#888;">Total Cost:</span>
+                    <span id="total-cost-display" style="color:#60A5FA;font-weight:700;">0.000 DOGS</span>
+                </div>
+            </div>
+            <button id="pay-add-task-btn" class="blue-btn" style="width:100%;padding:14px;border:none;border-radius:60px;font-weight:700;font-size:0.95rem;cursor:pointer;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;">PAY & ADD TASK</button>
+        </div>
+    </div>
+</div>
+
+<div id="payment-modal" class="modal" style="display:none;">
+    <div class="modal-content blue-modal" style="max-width:380px;width:92%;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);padding:0;">
+        <div class="modal-header blue-header" style="padding:16px 20px;border-bottom:1px solid rgba(59,130,246,0.1);">
+            <h3 style="color:#60A5FA;font-size:1.1rem;display:flex;align-items:center;gap:10px;margin:0;"><i class="fas fa-credit-card" style="color:#3B82F6;"></i> Payment Page</h3>
+            <button class="modal-close" onclick="document.getElementById('payment-modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <div class="form-group">
+                <label class="form-label">Wallet <span style="color:#888;font-size:0.6rem;">(Click to copy)</span></label>
+                <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.4);padding:8px 14px;border-radius:40px;border:1px solid rgba(59,130,246,0.08);cursor:pointer;" id="payment-wallet-display" onclick="window.app?.copyToClipboard(this.textContent)">
+                    <span style="font-size:0.7rem;font-family:monospace;color:#60A5FA;word-break:break-all;flex:1;">-</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Memo <span style="color:#888;font-size:0.6rem;">(Click to copy)</span></label>
+                <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.4);padding:8px 14px;border-radius:40px;border:1px solid rgba(59,130,246,0.08);cursor:pointer;" id="payment-memo-display" onclick="window.app?.copyToClipboard(this.textContent)">
+                    <span style="font-size:0.7rem;font-family:monospace;color:#60A5FA;word-break:break-all;flex:1;">-</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount <span style="color:#888;font-size:0.6rem;">(Click to copy)</span></label>
+                <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.4);padding:8px 14px;border-radius:40px;border:1px solid rgba(59,130,246,0.08);cursor:pointer;" id="payment-amount-display" onclick="window.app?.copyToClipboard(this.textContent)">
+                    <span style="font-size:0.8rem;font-family:monospace;color:#60A5FA;font-weight:600;flex:1;">0.0000 DOGS</span>
+                </div>
+            </div>
+            <a id="tonkeeper-link" href="#" target="_blank" class="blue-btn" style="display:block;text-align:center;padding:12px;border:none;border-radius:60px;font-weight:700;text-decoration:none;margin-bottom:10px;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;">Pay with Tonkeeper</a>
+            <button id="check-payment-btn" class="blue-btn" style="width:100%;padding:12px;border:none;border-radius:60px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;">Check Payment</button>
+            <div id="payment-status" style="text-align:center;margin-top:10px;font-size:0.8rem;color:#888;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="my-tasks-modal" class="modal" style="display:none;">
+    <div class="modal-content blue-modal" style="max-width:400px;width:92%;max-height:90vh;overflow-y:auto;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);padding:0;">
+        <div class="modal-header blue-header" style="padding:16px 20px;border-bottom:1px solid rgba(59,130,246,0.1);">
+            <h3 style="color:#60A5FA;font-size:1.1rem;display:flex;align-items:center;gap:10px;margin:0;"><i class="fas fa-tasks" style="color:#3B82F6;"></i> My Tasks</h3>
+            <button class="modal-close" onclick="document.getElementById('my-tasks-modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <div id="my-tasks-container">
+                <div class="task-loading"><i class="fas fa-spinner fa-pulse"></i><p>Loading...</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+                                                                </html>
