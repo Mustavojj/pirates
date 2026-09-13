@@ -1,7 +1,7 @@
 {
   "name": "pirate-team-server",
   "version": "1.0.0",
-  "description": "🏴‍☠️ GRAM PIRATES - Telegram Mini App Backend with JWT Authentication",
+  "description": "🏴‍☠️ DOGS PIRATES - Telegram Mini App Backend",
   "main": "server.js",
   "type": "module",
   "scripts": {
