@@ -1184,7 +1184,7 @@ class App {
     }
 
     getDailyDogsRate() {
-        return (this.powerBalance / 1000) * 5;
+        return (this.powerBalance / 1000) * 10;
     }
 
     getHourlyDogsRate() {
