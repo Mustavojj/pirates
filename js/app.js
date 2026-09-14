@@ -3013,7 +3013,7 @@ class App {
         const updateTotalCost = () => {
             const pricePer100 = this.config.PRICE_PER_100 || 0.001;
             const cost = (selectedTotal * selectedReward / 1000) * pricePer100;
-            totalCostDisplay.textContent = cost.toFixed(4) + ' DOGS';
+            totalCostDisplay.textContent = cost.toFixed(4) + '  GRAM';
         };
 
         document.querySelectorAll('.total-option').forEach(btn => {
