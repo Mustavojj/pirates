@@ -230,7 +230,7 @@ function getCurrentTime() {
 
 function calculateMiningReward(powerBalance, startTime, endTime) {
     const sessionHours = (endTime - startTime) / 3600000;
-    const dailyRate = (powerBalance / 1000) * 5;
+    const dailyRate = (powerBalance / 1000) * 10;
     const hourlyRate = dailyRate / 24;
     return hourlyRate * sessionHours;
 }
