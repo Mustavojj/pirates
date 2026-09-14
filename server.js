@@ -140,14 +140,14 @@ const APP_CONFIG = {
     MINING_SESSION_HOURS: 12,
     POWER_PER_DAY_RATE: 0.01,
     TASK_VERIFICATION_DELAY: 10,
-    DEFAULT_USER_AVATAR: "https://i.ibb.co/m5JD7vwy/In-Collage.png",
+    DEFAULT_USER_AVATAR: "https://i.ibb.co/jvBSQfvf/IMG-20260914-192504-728.jpg",
     TON_WALLET_ADDRESS: "UQDFm_g2Ibdung0gzQEPuKReUr7mE3xRb0SYqdwByAzy_vaf",
     PAYMENT_WALLET: "UQDFm_g2Ibdung0gzQEPuKReUr7mE3xRb0SYqdwByAzy_vaf",
     INTERSTITIAL_AD_BLOCK_ID: "int-47680",
     REWARD_AD_BLOCK_ID: "47678",
     BOT_LINK: "https://t.me/DogsPirateBot/app?startapp=",
     TASK_REWARD: 100,
-    TASK_IMAGE: "https://i.ibb.co/m5JD7vwy/In-Collage.png",
+    TASK_IMAGE: "https://i.ibb.co/jvBSQfvf/IMG-20260914-192504-728.jpg",
     DOGS_ICON: "https://i.ibb.co/m5JD7vwy/In-Collage.png",
     MINING_ICON: "https://i.ibb.co/m5JD7vwy/In-Collage.png",
     DOGS_TO_WITHDRAW_RATE: 1,
@@ -167,7 +167,7 @@ const APP_CONFIG = {
     MIN_CLAIM_DOGS: 1,
     PRICE_PER_100: 0.10,
     SOCIAL_DOGS_REWARD: 1,
-    PAYMENTS_CHANNEL: "https://t.me/Pirates_Proof",
+    PAYMENTS_CHANNEL: "https://t.me/DOGSPAYO",
     QUESTS: {
         welcome_bonus: { reward: 1000, type: "power" },
         level_quests: [
@@ -793,7 +793,7 @@ await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
         chat_id: chatId,
-        photo: 'https://i.ibb.co/m5JD7vwy/In-Collage.png',
+        photo: 'https://i.ibb.co/jvBSQfvf/IMG-20260914-192504-728.jpg',
         caption: 
             `<b>🏴‍☠️ Welcome to DOGS PIRATES!</b>\n\n` +
             `⛏️ Mine and earn <b>free DOGS!</b>\n\n` +
@@ -1943,7 +1943,7 @@ app.post('/api/check-payment', authenticate, async (req, res) => {
 
 async function sendTaskCreatedNotification(task) {
     try {
-        const CHANNEL_ID = '@PTS_TASKS';
+        const CHANNEL_ID = '@DOGSTASK';
         if (!BOT_TOKEN) return;
         
         const appLink = `https://t.me/DogsPirateBot/app`;
