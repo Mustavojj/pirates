@@ -3187,9 +3187,9 @@ class App {
             memoDisplay.onclick = () => this.copyToClipboard(memo);
         }
         if (amountDisplay) {
-            amountDisplay.textContent = amount.toFixed(4) + ' DOGS';
+            amountDisplay.textContent = amount.toFixed(4) + ' GRAM';
             amountDisplay.className = 'copyable-text';
-            amountDisplay.onclick = () => this.copyToClipboard(amount.toFixed(4) + ' DOGS');
+            amountDisplay.onclick = () => this.copyToClipboard(amount.toFixed(4));
         }
         
         if (tonkeeperLink) {
