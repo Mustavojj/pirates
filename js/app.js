@@ -2755,7 +2755,7 @@ class App {
             <h4>${this.t('official_channel')}</h4>
             <p>${this.t('official_channel_desc')}</p>
         </div>
-        <a href="https://t.me/GramPTS" target="_blank" class="community-btn blue-btn">${this.t('go')}</a>
+        <a href="https://t.me/DOGSPTS" target="_blank" class="community-btn blue-btn">${this.t('go')}</a>
     </div>
 </div>
 
@@ -2766,7 +2766,7 @@ class App {
             <h4>${this.t('payouts_channel')}</h4>
             <p>${this.t('payouts_channel_desc')}</p>
         </div>
-        <a href="https://t.me/Pirates_Proof" target="_blank" class="community-btn blue-btn">${this.t('go')}</a>
+        <a href="https://t.me/DOGSPAYO" target="_blank" class="community-btn blue-btn">${this.t('go')}</a>
     </div>
 </div>
 
@@ -2777,7 +2777,7 @@ class App {
             <h4>${this.t('tasks_channel')}</h4>
             <p>${this.t('tasks_channel_desc')}</p>
         </div>
-        <a href="https://t.me/PTS_TASKS" target="_blank" class="community-btn blue-btn">${this.t('go')}</a>
+        <a href="https://t.me/DOGSTASK" target="_blank" class="community-btn blue-btn">${this.t('go')}</a>
     </div>
 </div>
         `;
