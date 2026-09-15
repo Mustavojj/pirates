@@ -3607,6 +3607,7 @@ class App {
                                 if (isMember) {
                                     const success = await this.completeTaskOnServer(taskId, false, task.owner || null);
                                     if (success) {
+                                        const dogsReward = this.socialDogsReward || 1;
                                         newBtn.innerHTML = 'Completed';
                                         newBtn.disabled = true;
                                         newBtn.classList.add('done');
