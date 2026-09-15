@@ -3915,15 +3915,8 @@ class App {
                     </div>
                 </div>
 
-                <div class="withdraw-preview" id="withdraw-preview">
-                    <span>≈ 0.00 DOGS</span>
-                </div>
-
                 <button id="withdraw-btn" class="withdraw-confirm-btn blue-btn disabled">${this.t('confirm_withdrawal')}</button>
 
-                <div class="withdrawal-fees-note">
-                    ${this.t('withdrawal_fees', { fees: withdrawalFees })}
-                </div>
             </div>
 
             <div class="section-header blue-header" style="margin-top:16px;">
