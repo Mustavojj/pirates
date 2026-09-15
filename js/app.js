@@ -3835,8 +3835,8 @@ class App {
         const el = document.getElementById('wallet-page');
         if (!el) return;
 
-        const minWithdrawDogs = this.config.MINIMUM_WITHDRAW || 200;
-        const withdrawalFees = this.config.WITHDRAWAL_FEES || 80;
+        const minWithdrawDogs = this.config.MINIMUM_WITHDRAW || 1000;
+        const withdrawalFees = this.config.WITHDRAWAL_FEES || 250;
 
         const walletDisplay = this.userWallet ? 
             this.userWallet.substring(0, 5) + '.....' + this.userWallet.substring(this.userWallet.length - 5) : 
