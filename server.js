@@ -145,7 +145,7 @@ const APP_CONFIG = {
     PAYMENT_WALLET: "UQAWoiLpbPqpHjpteK2CHGizA6OimyPXZBWsx9Nw1IMPyUrm",
     INTERSTITIAL_AD_BLOCK_ID: "int-47680",
     REWARD_AD_BLOCK_ID: "47678",
-    BOT_LINK: "https://t.me/DogsPirateBot/app?startapp=",
+    BOT_LINK: "https://t.me/DogsPtsbot?start=",
     TASK_REWARD: 100,
     TASK_IMAGE: "https://i.ibb.co/jvBSQfvf/IMG-20260914-192504-728.jpg",
     DOGS_ICON: "https://i.ibb.co/m5JD7vwy/In-Collage.png",
@@ -785,8 +785,8 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             } 
              
             const appLink = referrerId 
-                ? `https://t.me/DogsPirateBot/app?startapp=${referrerId}`
-                : `https://t.me/DogsPirateBot/app`;
+                ? `https://t.me/DogsPtsbot/app?startapp=${referrerId}`
+                : `https://t.me/DogsPtsbot/app`;
 
 await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
     method: 'POST',
