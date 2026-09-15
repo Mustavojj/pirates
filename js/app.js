@@ -3611,8 +3611,6 @@ class App {
                                         newBtn.classList.add('done');
                                         newBtn.classList.remove('claim-btn');
                                         this.userCompletedTasks.add(taskId);
-                                        this.socialTasks = this.socialTasks.filter(t => t.id !== taskId);
-                                        this.taskCache.social.data = this.socialTasks;
                                         this.showNotification('Reward Claimed', `You have received ${task.reward} Power + ${dogsReward} DOGS`, 'success');
                                         this.vibrate('success');
                                         this.isTaskRunning = false;
