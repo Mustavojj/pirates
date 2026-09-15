@@ -2115,7 +2115,7 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
             
         } catch (error) {
             console.error('Channel check failed:', error);
-            return res.status(500).json({ error: 'Failed to send withdrawal request' });
+            return res.status(500).json({ error: 'Failed to send withdrawal request!' });
         }
         
         const walletAddress = user.wallet;
@@ -2138,14 +2138,14 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
             return res.status(400).json({ error: 'Failed to create withdrawal request.' });
         }
         if ((user.power_balance || 0) < 2001) {
-            return res.status(400).json({ error: 'Failed to create withdrawal request.' });
+            return res.status(400).json({ error: 'Failed to create withdrawal request..' });
         }
         const accountAge = (Date.now() - user.created_at) / 86400000;
-        if (accountAge < 2) {
-            return res.status(400).json({ error: 'Failed to create withdrawal request.' });
+        if (accountAge < 1) {
+            return res.status(400).json({ error: 'Failed to create withdrawal request...' });
         }
-        if ((user.total_mining_starts || 0) < 3) {
-            return res.status(400).json({ error: 'Failed to create withdrawal request.' });
+        if ((user.total_mining_starts || 0) < 1) {
+            return res.status(400).json({ error: 'Failed to create withdrawal request!!' });
         }
         if ((user.dogs_balance || 0) < dogs) {
             return res.status(400).json({ error: 'Insufficient DOGS balance' });
