@@ -809,10 +809,10 @@ await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
             inline_keyboard: [
                 [{ text: '🏴‍☠️ Start App', url: appLink }],
                 [
-                    { text: '📋 TASKS', url: 'https://t.me/PTS_TASKS' },
-                    { text: '💸 PAYOUTS', url: 'https://t.me/Pirates_Proof' }
+                    { text: '📋 TASKS', url: 'https://t.me/DOGSTASK' },
+                    { text: '💸 PAYOUTS', url: 'https://t.me/DOGSPAYO' }
                 ],
-                [{ text: '📰 Official Channel', url: 'https://t.me/GramPTS' }]
+                [{ text: '📰 Official Channel', url: 'https://t.me/DOGSPTS' }]
             ]
         }
     })
