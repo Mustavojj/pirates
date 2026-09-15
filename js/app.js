@@ -3336,14 +3336,15 @@ class App {
                                 if (isMember) {
                                     const success = await this.completeTaskOnServer(taskId, false);
                                     if (success) {
-                                        newBtn.innerHTML = '✓ Done';
+                                        newBtn.innerHTML = 'Completed';
                                         newBtn.disabled = true;
                                         newBtn.classList.add('done');
                                         newBtn.classList.remove('claim-btn');
                                         this.userCompletedTasks.add(taskId);
                                         this.showNotification('Reward Claimed', `You have received ${task.reward} Power`, 'success');
                                         this.vibrate('success');
-                                        this.renderMining();
+                                        this.isTaskRunning = false;
+                                        this.disableAllTaskButtons(false);
                                         this.loadMainTasks();
                                     } else {
                                         newBtn.innerHTML = this.t('claim');
@@ -3471,14 +3472,15 @@ class App {
                                 if (isMember) {
                                     const success = await this.completeTaskOnServer(taskId, true, task.owner || null);
                                     if (success) {
-                                        newBtn.innerHTML = '✓ Done';
+                                        newBtn.innerHTML = 'Completed';
                                         newBtn.disabled = true;
                                         newBtn.classList.add('done');
                                         newBtn.classList.remove('claim-btn');
                                         this.userCompletedTasks.add(taskId);
                                         this.showNotification('Reward Claimed', `You have received ${task.reward} Power`, 'success');
                                         this.vibrate('success');
-                                        this.renderMining();
+                                        this.isTaskRunning = false;
+                                        this.disableAllTaskButtons(false);
                                         this.loadPartnerTasks();
                                     } else {
                                         newBtn.innerHTML = this.t('claim');
@@ -3604,7 +3606,7 @@ class App {
                                 if (isMember) {
                                     const success = await this.completeTaskOnServer(taskId, false, task.owner || null);
                                     if (success) {
-                                        newBtn.innerHTML = '✓ Done';
+                                        newBtn.innerHTML = 'Completed';
                                         newBtn.disabled = true;
                                         newBtn.classList.add('done');
                                         newBtn.classList.remove('claim-btn');
@@ -3613,7 +3615,8 @@ class App {
                                         this.taskCache.social.data = this.socialTasks;
                                         this.showNotification('Reward Claimed', `You have received ${task.reward} Power + ${dogsReward} DOGS`, 'success');
                                         this.vibrate('success');
-                                        this.renderMining();
+                                        this.isTaskRunning = false;
+                                        this.disableAllTaskButtons(false);
                                         this.loadSocialTasks();
                                         
                                     } else {
@@ -3921,9 +3924,6 @@ class App {
 
                 <button id="withdraw-btn" class="withdraw-confirm-btn blue-btn disabled">${this.t('confirm_withdrawal')}</button>
 
-                <div class="exchange-note">
-                    <i class="fas fa-exchange-alt"></i> ${this.t('exchange_rate')}: 1 DOGS = 1 DOGS
-                </div>
                 <div class="withdrawal-fees-note">
                     ${this.t('withdrawal_fees', { fees: withdrawalFees })}
                 </div>
