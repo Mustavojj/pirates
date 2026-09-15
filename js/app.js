@@ -3520,6 +3520,7 @@ class App {
         if (!container) return;
 
         this.isTaskRunning = false;
+        this.disableAllTaskButtons(false);
         this.taskCompletionTimers.forEach(timer => clearInterval(timer));
         this.taskCompletionTimers.clear();
         container.replaceChildren();
@@ -3610,11 +3611,8 @@ class App {
                                         newBtn.disabled = true;
                                         newBtn.classList.add('done');
                                         newBtn.classList.remove('claim-btn');
-                                        this.userCompletedTasks.add(taskId);
                                         this.showNotification('Reward Claimed', `You have received ${task.reward} Power + ${dogsReward} DOGS`, 'success');
                                         this.vibrate('success');
-                                        this.isTaskRunning = false;
-                                        this.disableAllTaskButtons(false);
                                         this.loadSocialTasks();
                                         
                                     } else {
