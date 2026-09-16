@@ -1459,6 +1459,13 @@ app.post('/api/complete-task', authenticate, async (req, res) => {
         }
 
         if (task.total_completed >= task.total) {
+
+            await sendTelegramNotification(
+                    task.owner,
+                    '<b>✅ Task Completed!</b>',
+                    `<b>🏴‍☠️ Your task "${taskData.name}" has been completed!</b>`
+                );
+            
             await supabase
                 .from('tasks')
                 .update({ status: 'completed', notified: true })
@@ -1946,11 +1953,11 @@ async function sendTaskCreatedNotification(task) {
         const CHANNEL_ID = '@DOGSTASK';
         if (!BOT_TOKEN) return;
         
-        const appLink = `https://t.me/DogsPirateBot/app`;
+        const appLink = `https://t.me/DogsPtsbot/app`;
 
         const message = `<b>⚡ NEW TASK AVAILABLE!</b>\n\n` +
             `<b>📋 Task: ${task.name}</b>\n` +
-            `<b>👷‍♂️ Target: ${task.total} (0/${task.total})</b>\n` +
+            `<b>👷‍♂️ Target: ${task.total} </b>\n` +
             `<b>⏳ Status: ACTIVE</b>\n\n` +
             `<b>🎁 Reward: ${task.reward} POWER + ${APP_CONFIG.SOCIAL_DOGS_REWARD || 1} DOGS</b>`;
 
