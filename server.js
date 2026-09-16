@@ -534,7 +534,7 @@ async function sendWithdrawalProof(channelId, userId, wallet, dogsAmount, txHash
                     }],
                     [{
                         text: '🏴‍☠️ DOGS PIRATES',
-                        url: 'https://t.me/DogsPirateBot/app'
+                        url: 'https://t.me/DogsPtsbot/app'
                     }]
                 ]
             }
@@ -1126,7 +1126,7 @@ app.post('/api/check-mining-status', async (req, res) => {
                 user.id,
                 '⛏️ Mining Stopped!',
                 `🏴‍☠️ Your mining session has ended.\n\n📊 You earned ${reward.toFixed(3)} DOGS\n\n🎁 Claim your rewards and restart mining!`,
-                { text: 'CLAIM NOW', url: 'https://t.me/DogsPirateBot/app' }
+                { text: 'CLAIM NOW', url: 'https://t.me/DogsPtsbot/app' }
             );
             notifiedUsers.add(user.id);
             notified++;
