@@ -515,9 +515,9 @@ async function sendWithdrawalProof(channelId, userId, wallet, dogsAmount, txHash
         const explorerUrl = txHash ? `https://tonscan.org/tx/${txHash}` : '#';
         
         const message = `<b>🆕 New Withdrawal Confirmed!</b>\n\n` +
-            `<b>💀 User:</b> ${maskedUserId}\n` +
-            `<b>🐕 Amount:</b> ${dogsAmount.toFixed(2)} DOGS\n` +
-            `<b>🔰 Wallet:</b> ${maskedWallet}\n` +
+            `<b>👤 User:</b> ${maskedUserId}\n` +
+            `<b>💰 Amount:</b> ${dogsAmount.toFixed(0)} DOGS\n` +
+            `<b>📥 Wallet:</b> ${maskedWallet}\n` +
             `<b>⏳ Status:</b> Confirmed\n\n` +
             `<b>⛏️ MINE & EARN FREE DOGS</b>`;
         
@@ -679,7 +679,7 @@ async function checkPendingWithdrawals() {
                             .eq('id', withdrawal.id);
                         
                         const userMessage = `<b>✅ Your Withdrawal Confirmed!</b>\n\n` +
-                            `🐕 <code>${withdrawal.dogs_amount.toFixed(2)}</code> <b>DOGS has been sent</b>\n\n` +
+                            `💰 <code>${withdrawal.dogs_amount.toFixed(0)}</code> <b>DOGS has been sent</b>\n\n` +
                             `<a href="${statusResult.data.tx_hash ? `https://tonscan.org/tx/${statusResult.data.tx_hash}` : '#'}">🔘 View transaction on Explorer</a>\n\n`;
                         
                         await sendTelegramNotification(
@@ -694,8 +694,8 @@ async function checkPendingWithdrawals() {
                         
                         const adminMessage = `<b>✅ Withdrawal Completed!</b>\n\n` +
                             `<b>👤 User:</b> ${withdrawal.user_id} (${username})\n` +
-                            `<b>🐕 Amount:</b> ${withdrawal.dogs_amount.toFixed(2)} DOGS\n` +
-                            `<b>🔰 Wallet:</b> ${withdrawal.wallet}\n` +
+                            `<b>💰 Amount:</b> ${withdrawal.dogs_amount.toFixed(0)} DOGS\n` +
+                            `<b>📥 Wallet:</b> ${withdrawal.wallet}\n` +
                             `<b>🔗 TX:</b> <a href="${statusResult.data.tx_hash ? `https://tonscan.org/tx/${statusResult.data.tx_hash}` : '#'}">View on Explorer</a>`;
                         await sendTelegramNotification(adminId, '✅ Withdrawal Completed!', adminMessage);
                         
