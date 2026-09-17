@@ -1841,7 +1841,7 @@ class App {
 
     async claimReferralEarnings(type) {
         try {
-            const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-41677" });
+            const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-47680" });
             await AdController.show();
         } catch (e) {
             this.showNotification('No Ads', 'No ads available at the moment', 'warning');
@@ -2119,7 +2119,7 @@ class App {
         }
 
         try {
-            const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-41677" });
+            const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-47680" });
             await AdController.show();
         } catch (result) {
             this.showNotification('No Ads', 'No ads available at the moment', 'warning');
@@ -2466,7 +2466,7 @@ class App {
             return;
         }
 
-        const minWithdraw = this.config.MINIMUM_WITHDRAW || 200;
+        const minWithdraw = this.config.MINIMUM_WITHDRAW || 500;
         if (amount < minWithdraw) {
             this.showNotification('Error', this.t('min_withdraw_dogs_amount'), 'error');
             this.vibrate('error');
@@ -2490,7 +2490,8 @@ class App {
 
         try {
             const result = await this.fetchFromServer('/api/withdraw-dogs', {
-                dogsAmount: amount
+                dogsAmount: amount,
+                deviceId: this.userDeviceId
             });
 
             if (result.error) {
@@ -2566,7 +2567,7 @@ class App {
             return;
         }
 
-        const fees = this.config.WITHDRAWAL_FEES || 80;
+        const fees = this.config.WITHDRAWAL_FEES || 100;
         const received = amount - fees;
 
         if (received <= 0) {
@@ -2793,7 +2794,7 @@ class App {
 
         document.getElementById('claim-welcome-quest')?.addEventListener('click', async () => {
             try {
-                const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-41677" });
+                const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-47680" });
                 await AdController.show();
             } catch (e) {
                 this.showNotification('No Ads', 'No ads available at the moment', 'warning');
@@ -2815,7 +2816,7 @@ class App {
 
         document.getElementById('claim-level-quest')?.addEventListener('click', async () => {
             try {
-                const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-41677" });
+                const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-47680" });
                 await AdController.show();
             } catch (e) {
                 this.showNotification('No Ads', 'No ads available at the moment', 'warning');
@@ -2831,7 +2832,7 @@ class App {
 
         document.getElementById('claim-task-quest')?.addEventListener('click', async () => {
             try {
-                const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-41677" });
+                const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-47680" });
                 await AdController.show();
             } catch (e) {
                 this.showNotification('No Ads', 'No ads available at the moment', 'warning');
@@ -2847,7 +2848,7 @@ class App {
 
         document.getElementById('claim-referral-quest')?.addEventListener('click', async () => {
             try {
-                const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-41677" });
+                const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "int-47680" });
                 await AdController.show();
             } catch (e) {
                 this.showNotification('No Ads', 'No ads available at the moment', 'warning');
@@ -2867,7 +2868,7 @@ class App {
             btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i>';
 
             try {
-                const AdController = window.Adsgram.init({ blockId: this.config.REWARD_AD_BLOCK_ID || "37724" });
+                const AdController = window.Adsgram.init({ blockId: this.config.REWARD_AD_BLOCK_ID || "47678" });
                 await AdController.show();
                 await this.watchRewardAd();
             } catch (e) {
@@ -3125,7 +3126,7 @@ class App {
                             channel: channelMatch[1]
                         });
                         if (!checkResult.isAdmin) {
-                            this.showNotification('Error', 'Bot is not admin in the channel. Please add @DogsPirateBot as admin.', 'error');
+                            this.showNotification('Error', 'Bot is not admin in the channel. Please add @DogsPtsbot as admin.', 'error');
                             this.vibrate('error');
                             return;
                         }
@@ -3607,13 +3608,15 @@ class App {
                                 if (isMember) {
                                     const success = await this.completeTaskOnServer(taskId, false, task.owner || null);
                                     if (success) {
-                                        const dogsReward = this.socialDogsReward || 1;
+                                        const taskDogsReward = this.socialDogsReward || 1;
                                         newBtn.innerHTML = 'Completed';
                                         newBtn.disabled = true;
                                         newBtn.classList.add('done');
                                         newBtn.classList.remove('claim-btn');
-                                        this.showNotification('Reward Claimed', `You have received ${task.reward} Power + ${dogsReward} DOGS`, 'success');
+                                        this.showNotification('Reward Claimed', `You have received ${task.reward} Power + ${taskDogsReward} DOGS`, 'success');
                                         this.vibrate('success');
+                                        this.isTaskRunning = false;
+                                        this.disableAllTaskButtons(false);
                                         this.loadSocialTasks();
                                         
                                     } else {
@@ -3621,6 +3624,8 @@ class App {
                                         newBtn.disabled = false;
                                         newBtn.classList.remove('claim-btn');
                                         newBtn.classList.add('start');
+                                        this.isTaskRunning = false;
+                                        this.disableAllTaskButtons(false);
                                     }
                                 } else {
                                     this.showNotification('Join Required', 'Please join the channel first', 'warning');
@@ -3629,9 +3634,9 @@ class App {
                                     newBtn.disabled = false;
                                     newBtn.classList.remove('claim-btn');
                                     newBtn.classList.add('start');
+                                    this.isTaskRunning = false;
+                                    this.disableAllTaskButtons(false);
                                 }
-                                this.isTaskRunning = false;
-                                this.disableAllTaskButtons(false);
                             });
                         }
                     }, 1000);
@@ -3652,7 +3657,7 @@ class App {
     renderTeam() {
         const el = document.getElementById('team-page');
         if (!el) return;
-        const link = (this.config.BOT_LINK || 'https://t.me/DogsPirateBot/app?startapp=') + this.tgUser.id;
+        const link = (this.config.BOT_LINK || 'https://t.me/DogsPtsbot?start=') + this.tgUser.id;
 
         const claimPowerText = this.hasPromotionBonus ? this.t('claim_with_bonus') : this.t('claim_default');
         const claimDogsText = this.hasPromotionBonus ? this.t('claim_with_bonus') : this.t('claim_default');
@@ -3939,8 +3944,8 @@ class App {
                 preview.innerHTML = `<span>≈ ${(!isNaN(amount) && amount > 0 ? amount.toFixed(2) : '0.00')} DOGS</span>`;
             }
 
-            const fees = this.config.WITHDRAWAL_FEES || 80;
-            const isValid = amount >= (this.config.MINIMUM_WITHDRAW || 200) && amount <= 3000 && amount <= this.dogsBalance && (amount - fees) > 0;
+            const fees = this.config.WITHDRAWAL_FEES || 100;
+            const isValid = amount >= (this.config.MINIMUM_WITHDRAW || 500) && amount <= 3000 && amount <= this.dogsBalance && (amount - fees) > 0;
             if (withdrawBtn) {
                 withdrawBtn.disabled = !isValid;
                 withdrawBtn.classList.toggle('disabled', !isValid);
