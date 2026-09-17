@@ -1003,14 +1003,30 @@ app.post('/api/auth', async (req, res) => {
     }
 });
 
+
 app.post('/api/verify-device', async (req, res) => {
     try {
         const { userId, deviceId, code } = req.body;
         
+        console.log('=== VERIFY DEVICE DEBUG ===');
+        console.log('userId received:', userId, '| type:', typeof userId);
+        console.log('code received:', JSON.stringify(code), '| type:', typeof code);
+        console.log('code length:', code?.length);
+        console.log('deviceId received:', deviceId);
+        
         if (!validateUserId(userId) || !code) {
+            console.log('❌ validateUserId failed or no code');
             return res.status(400).json({ error: 'Invalid request' });
         }
-
+        
+        const { data: allCodes, error: allError } = await supabase
+            .from('verification_codes')
+            .select('*')
+            .eq('user_id', userId);
+        
+        console.log('DB codes for user:', JSON.stringify(allCodes, null, 2));
+        console.log('DB query error:', allError);
+        
         const { data: verification, error } = await supabase
             .from('verification_codes')
             .select('*')
@@ -1018,15 +1034,22 @@ app.post('/api/verify-device', async (req, res) => {
             .eq('code', code)
             .eq('used', false)
             .single();
-
-        if (error) {
+        
+        console.log('Filtered result:', JSON.stringify(verification, null, 2));
+        console.log('Filtered error:', error);
+        
+        if (verification) {
+            console.log('expires_at:', verification.expires_at);
+            console.log('now:', getCurrentTime());
+            console.log('is expired:', getCurrentTime() > verification.expires_at);
+        }
+        
+        console.log('=========================');
+        
+        if (error || !verification) {
             return res.status(400).json({ error: 'Invalid code' });
         }
-
-        if (!verification) {
-            return res.status(400).json({ error: 'Invalid code' });
-        }
-
+        
         const currentTime = getCurrentTime();
         
         if (currentTime > verification.expires_at) {
@@ -1036,13 +1059,13 @@ app.post('/api/verify-device', async (req, res) => {
                 .eq('id', verification.id);
             return res.status(400).json({ error: 'Code expired' });
         }
-
+        
         await updateUser(userId, { device_id: deviceId });
         await supabase
             .from('verification_codes')
             .update({ used: true })
             .eq('id', verification.id);
-
+        
         const token = generateJWT(userId, deviceId);
         res.cookie('token', token, {
             httpOnly: true,
@@ -1050,7 +1073,7 @@ app.post('/api/verify-device', async (req, res) => {
             sameSite: 'strict',
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
-
+        
         const user = await getUser(userId);
         res.json({ success: true, token, user });
     } catch (error) {
@@ -1059,6 +1082,8 @@ app.post('/api/verify-device', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+
 
 app.post('/api/resend-device-code', async (req, res) => {
     try {
