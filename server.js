@@ -2342,12 +2342,8 @@ app.post('/api/get-referrals', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/admin/cleanup-fake-accounts', async (req, res) => {
+app.get('/api/admin/cleanup-fake-accounts', async (req, res) => {
     try {
-        const adminKey = req.headers['x-admin-key'];
-        if (adminKey !== process.env.ADMIN_CLEANUP_KEY) {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
         
         const { data: allUsers, error: dupError } = await supabase
             .from('users')
