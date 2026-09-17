@@ -1248,10 +1248,6 @@ app.post('/api/update-user', authenticate, async (req, res) => {
             return res.status(403).json({ error: 'Device mismatch' });
         }
         const updates = {};
-        if (powerBalance !== undefined) updates.power_balance = powerBalance;
-        if (dogsBalance !== undefined) updates.dogs_balance = dogsBalance;
-        if (gramBalance !== undefined) updates.gram_balance = gramBalance;
-        if (quests !== undefined) updates.quests = quests;
         if (miningActive !== undefined) updates.mining_active = miningActive;
         if (miningStartTime !== undefined) updates.mining_start_time = miningStartTime;
         if (miningEndTime !== undefined) updates.mining_end_time = miningEndTime;
