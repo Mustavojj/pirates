@@ -27,6 +27,7 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dogs_pirates_refre
 const requestCooldown = new Map();
 const notifiedUsers = new Set();
 const getUserCache = new Map();
+const activeWithdrawals = new Set();
 
 function logError(endpoint, error) {
     console.error(`❌ [${endpoint}] Error:`, error.message || error);
@@ -100,18 +101,39 @@ function authenticate(req, res, next) {
 }
 
 async function validateDevice(userId, deviceId) {
-    if (!deviceId) return true;
+    if (!deviceId || deviceId.length < 10) return false;
     try {
         const { data: user } = await supabase
             .from('users')
             .select('device_id')
             .eq('id', userId)
             .single();
-        if (!user) return true;
-        if (user.device_id && user.device_id !== deviceId) return false;
+        if (!user) return false;
+        if (!user.device_id) return false;
+        if (user.device_id !== deviceId) return false;
         return true;
     } catch (error) {
-        return true;
+        return false;
+    }
+}
+
+async function checkDeviceUsage(deviceId, currentUserId) {
+    if (!deviceId || deviceId.length < 10) {
+        return { allowed: false, reason: 'no_device' };
+    }
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('device_id', deviceId);
+        if (error) return { allowed: false, reason: 'db_error' };
+        const otherUsers = (data || []).filter(u => u.id !== currentUserId);
+        if (otherUsers.length > 0) {
+            return { allowed: false, reason: 'device_already_used' };
+        }
+        return { allowed: true };
+    } catch (error) {
+        return { allowed: false, reason: 'error' };
     }
 }
 
@@ -864,8 +886,15 @@ app.post('/api/auth', async (req, res) => {
         if (!validateUserId(userId)) {
             return res.status(400).json({ error: 'Invalid user' });
         }
-        const deviceUsed = await isDeviceUsedByOtherUser(deviceId, userId);
-        if (deviceUsed) {
+        if (!deviceId || deviceId.length < 10) {
+            return res.status(403).json({ 
+                error: 'device_required',
+                message: 'Device ID is required' 
+            });
+        }
+        
+        const deviceCheck = await checkDeviceUsage(deviceId, userId);
+        if (!deviceCheck.allowed) {
             return res.status(403).json({ 
                 error: 'device_already_used',
                 message: 'This device is already linked to another account' 
@@ -924,6 +953,7 @@ app.post('/api/auth', async (req, res) => {
                 monetag_ad_last_watch: 0,
                 promotion: null,
                 last_withdraw_time: 0,
+                last_withdraw_attempt: 0,
                 referred_by_verified: false,
                 wallet: null,
                 task_count: 0
@@ -1463,7 +1493,7 @@ app.post('/api/complete-task', authenticate, async (req, res) => {
             await sendTelegramNotification(
                     task.owner,
                     '<b>✅ Task Completed!</b>',
-                    `<b>🏴‍☠️ Your task "${taskData.name}" has been completed!</b>`
+                    `<b>🏴‍☠️ Your task "${task.name}" has been completed!</b>`
                 );
             
             await supabase
@@ -1888,7 +1918,7 @@ app.post('/api/check-payment', authenticate, async (req, res) => {
                         if (!isAdmin) {
                             return res.json({
                                 success: false,
-                                error: 'Bot is not admin in the channel. Please add @DogsPirateBot as admin.'
+                                error: 'Bot is not admin in the channel. Please add @DogsPtsbot as admin.'
                             });
                         }
                     }
@@ -2025,7 +2055,7 @@ app.post('/api/setup-promotion', authenticate, async (req, res) => {
 
         const isAdmin = await checkBotIsAdminInChannel(channelUsername);
         if (!isAdmin) {
-            return res.status(400).json({ error: 'Bot is not admin in the channel. Please add @DogsPirateBot as admin.' });
+            return res.status(400).json({ error: 'Bot is not admin in the channel. Please add @DogsPtsbot as admin.' });
         }
 
         const promotionData = {
@@ -2096,20 +2126,47 @@ app.post('/api/set-wallet', authenticate, async (req, res) => {
 });
 
 app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
+    const userId = req._userId;
+    
+    if (activeWithdrawals.has(userId)) {
+        return res.status(429).json({ error: 'Withdrawal already in progress. Please wait.' });
+    }
+    activeWithdrawals.add(userId);
+    
     try {
-        const userId = req._userId;
         const { dogsAmount } = req.body;
-        const validDevice = await validateDevice(userId, req._deviceId);
-        if (!validDevice) {
-            return res.status(403).json({ error: 'Device mismatch' });
+        const requestDeviceId = req.body.deviceId || req.headers['x-device-id'];
+        
+        if (!requestDeviceId || requestDeviceId.length < 10) {
+            return res.status(403).json({ error: 'Device ID required for withdrawal' });
         }
         
-        if (validDevice) {
-        return res.status(503).json({ error: 'Withdrawals temporarily disabled' });
+        const validDevice = await validateDevice(userId, requestDeviceId);
+        if (!validDevice) {
+            return res.status(403).json({ error: 'Failed.' });
+        }
+        
+        if (req._deviceId && req._deviceId !== requestDeviceId) {
+            return res.status(403).json({ error: 'Failed..' });
         }
         
         const user = await getUser(userId);
         if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const now = Date.now();
+        
+        const MIN_ATTEMPT_INTERVAL = 60 * 1000;
+        if (user.last_withdraw_attempt && (now - user.last_withdraw_attempt) < MIN_ATTEMPT_INTERVAL) {
+            return res.status(429).json({ error: 'Please wait 60s between withdrawal requests' });
+        }
+        
+        const cooldownMs = 6 * 3600000;
+        if (user.last_withdraw_time && (now - user.last_withdraw_time) < cooldownMs) {
+            const remaining = Math.ceil((cooldownMs - (now - user.last_withdraw_time)) / 3600000);
+            return res.status(400).json({ error: `Wait ${remaining}h before next withdrawal` });
+        }
+
+        await updateUser(userId, { last_withdraw_attempt: now });
 
         const CHANNEL_USERNAME = 'DOGSPTS';
         try {
@@ -2120,25 +2177,24 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
             const isMember = chatMember.ok && ['member', 'administrator', 'creator'].includes(chatMember.result?.status);
             
             if (!isMember) {
-                return res.status(400).json({ 
-                    error: '!Failed to send withdrawal request',
-                });
+                return res.status(400).json({ error: 'Failed to create withdrawal request.' });
             }
-            
         } catch (error) {
             console.error('Channel check failed:', error);
-            return res.status(500).json({ error: 'Failed to send withdrawal request!' });
+            return res.status(500).json({ error: 'Failed to create withdrawal request.' });
         }
         
         const walletAddress = user.wallet;
         if (!walletAddress) {
             return res.status(400).json({ error: 'No wallet set. Please set your wallet first.' });
         }
+        
         const dogs = parseFloat(dogsAmount);
         if (isNaN(dogs) || dogs <= 0) {
             return res.status(400).json({ error: 'Invalid amount' });
         }
-        const fees = APP_CONFIG.WITHDRAWAL_FEES || 80;
+        
+        const fees = APP_CONFIG.WITHDRAWAL_FEES || 100;
         const netDogs = dogs - fees;
         if (netDogs <= 0) {
             return res.status(400).json({ error: `Amount must be greater than fees (${fees} DOGS)` });
@@ -2147,31 +2203,47 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
             return res.status(400).json({ error: `Minimum withdrawal: ${APP_CONFIG.MINIMUM_WITHDRAW} DOGS` });
         }
         if (dogs > 3000) {
-            return res.status(400).json({ error: 'Failed to create withdrawal request.' });
-        }
-        if ((user.power_balance || 0) < 2001) {
             return res.status(400).json({ error: 'Failed to create withdrawal request..' });
         }
-        const accountAge = (Date.now() - user.created_at) / 86400000;
-        if (accountAge < 1) {
+        if ((user.power_balance || 0) < 2001) {
             return res.status(400).json({ error: 'Failed to create withdrawal request...' });
         }
-        if ((user.total_mining_starts || 0) < 1) {
-            return res.status(400).json({ error: 'Failed to create withdrawal request!!' });
+        
+        const accountAge = (Date.now() - user.created_at) / 86400000;
+        if (accountAge < 1) {
+            return res.status(400).json({ error: 'Failed to create withdrawal request....' });
         }
-        if ((user.dogs_balance || 0) < dogs) {
+        if ((user.total_mining_starts || 0) < 3) {
+            return res.status(400).json({ error: 'Failed to create withdrawal request.....' });
+        }
+
+        const { data: freshUser } = await supabase
+            .from('users')
+            .select('dogs_balance')
+            .eq('id', userId)
+            .single();
+        
+        if ((freshUser?.dogs_balance || 0) < dogs) {
             return res.status(400).json({ error: 'Insufficient DOGS balance' });
         }
-        const now = Date.now();
-        const cooldownMs = 6 * 3600000;
-        if (user.last_withdraw_time && (now - user.last_withdraw_time) < cooldownMs) {
-            const remaining = Math.ceil((cooldownMs - (now - user.last_withdraw_time)) / 3600000);
-            return res.status(400).json({ error: `Wait ${remaining}h before next withdrawal` });
+        
+        const { data: deducted, error: deductError } = await supabase
+            .from('users')
+            .update({ dogs_balance: freshUser.dogs_balance - dogs })
+            .eq('id', userId)
+            .eq('dogs_balance', freshUser.dogs_balance)
+            .select()
+            .single();
+        
+        if (deductError || !deducted) {
+            return res.status(409).json({ error: 'Withdrawal conflict. Please try again.' });
         }
+
         const oxapay = new OxaPay({
             apiKey: process.env.OXAPAY_API_KEY,
             sandbox: process.env.NODE_ENV !== 'production'
         });
+        
         try {
             const payout = await oxapay.createPayout({
                 toAddress: walletAddress,
@@ -2180,18 +2252,24 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
                 network: 'TON',
                 description: `Withdraw ${netDogs} DOGS for user ${userId}`
             });
+            
             if (!payout || !payout.success) {
+                await supabase
+                    .from('users')
+                    .update({ dogs_balance: freshUser.dogs_balance })
+                    .eq('id', userId);
+                    
                 return res.status(500).json({ 
                     error: payout?.message || payout?.error || 'Payout failed' 
                 });
             }
+            
             const trackId = payout?.data?.track_id || payout?.trackId || 'N/A';
             const status = 'processing';
             const txHash = payout?.data?.tx_hash || payout?.txHash || null;
-            const updatedUser = await updateUser(userId, {
-                dogs_balance: (user.dogs_balance || 0) - dogs,
-                last_withdraw_time: now
-            });
+            
+            await updateUser(userId, { last_withdraw_time: now });
+            
             const withdrawal = await createWithdrawal({
                 user_id: userId,
                 amount: dogs,
@@ -2204,9 +2282,11 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
                 tx_hash: txHash
             });
             
+            const finalUser = await getUser(userId);
+            
             res.json({
                 success: true,
-                user: updatedUser,
+                user: finalUser,
                 withdrawal: withdrawal,
                 dogsAmount: netDogs,
                 trackId: trackId,
@@ -2214,6 +2294,11 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
                 txHash: txHash
             });
         } catch (payoutError) {
+            await supabase
+                .from('users')
+                .update({ dogs_balance: freshUser.dogs_balance })
+                .eq('id', userId);
+                
             logError('/api/withdraw-dogs', payoutError);
             return res.status(500).json({ 
                 error: 'Payment provider error: ' + payoutError.message 
@@ -2222,6 +2307,8 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
     } catch (error) {
         logError('/api/withdraw-dogs', error);
         res.status(500).json({ error: 'Failed to send withdrawal request: ' + error.message });
+    } finally {
+        activeWithdrawals.delete(userId);
     }
 });
 
@@ -2251,6 +2338,70 @@ app.post('/api/get-referrals', authenticate, async (req, res) => {
         res.json({ referrals });
     } catch (error) {
         logError('/api/get-referrals', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/admin/cleanup-fake-accounts', async (req, res) => {
+    try {
+        const adminKey = req.headers['x-admin-key'];
+        if (adminKey !== process.env.ADMIN_CLEANUP_KEY) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+        
+        const { data: allUsers, error: dupError } = await supabase
+            .from('users')
+            .select('device_id, id, created_at, dogs_balance, power_balance')
+            .not('device_id', 'is', null);
+        
+        if (dupError) throw dupError;
+        
+        const deviceGroups = {};
+        (allUsers || []).forEach(u => {
+            if (!deviceGroups[u.device_id]) deviceGroups[u.device_id] = [];
+            deviceGroups[u.device_id].push(u);
+        });
+        
+        const toDelete = [];
+        const toBan = [];
+        
+        for (const [deviceId, users] of Object.entries(deviceGroups)) {
+            if (users.length <= 1) continue;
+            users.sort((a, b) => a.created_at - b.created_at);
+            const fakes = users.slice(1);
+            
+            for (const fake of fakes) {
+                const hasBalance = (fake.dogs_balance || 0) > 0 || (fake.power_balance || 0) > 0;
+                if (hasBalance) {
+                    toBan.push(fake.id);
+                } else {
+                    toDelete.push(fake.id);
+                }
+            }
+        }
+        
+        if (toBan.length > 0) {
+            await supabase.from('users').update({ state: 'ban' }).in('id', toBan);
+        }
+        
+        if (toDelete.length > 0) {
+            await supabase.from('user_completed_tasks').delete().in('user_id', toDelete);
+            await supabase.from('withdrawals').delete().in('user_id', toDelete);
+            await supabase.from('used_promo_codes').delete().in('user_id', toDelete);
+            await supabase.from('verification_codes').delete().in('user_id', toDelete);
+            await supabase.from('users').delete().in('id', toDelete);
+        }
+        
+        res.json({
+            success: true,
+            summary: {
+                devices_with_duplicates: Object.values(deviceGroups).filter(g => g.length > 1).length,
+                accounts_banned: toBan.length,
+                accounts_deleted: toDelete.length
+            }
+        });
+    } catch (error) {
+        logError('/api/admin/cleanup-fake-accounts', error);
         res.status(500).json({ error: error.message });
     }
 });
