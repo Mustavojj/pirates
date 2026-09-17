@@ -2103,6 +2103,11 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
         if (!validDevice) {
             return res.status(403).json({ error: 'Device mismatch' });
         }
+        
+        if (validDevice) {
+        return res.status(503).json({ error: 'Withdrawals temporarily disabled' });
+        }
+        
         const user = await getUser(userId);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
