@@ -970,19 +970,21 @@ app.post('/api/auth', async (req, res) => {
         }
         if (user.device_id && user.device_id !== deviceId) {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            await supabase
-                .from('verification_codes')
-                .upsert({
-                    user_id: userId,
-                    code: code,
-                    expires_at: getCurrentTime() + 300000,
-                    created_at: getCurrentTime(),
-                    used: false
-                });
+            
+            await supabase.from('verification_codes').delete().eq('user_id', userId);
+            
+            await supabase.from('verification_codes').insert({
+                user_id: userId,
+                code: code,
+                expires_at: getCurrentTime() + 300000,
+                created_at: getCurrentTime(),
+                used: false
+            });
+            
             await sendTelegramNotification(
                 userId,
-                '🔐 New Device Detected!',
-                `<b>🔰 A new device is trying to access your account.</b>\n\n<b>🔑 Verification Code:</b> <code>${code}</code>\n\n<b>⏰ Valid for 5 minutes.</b>`
+                '❗ New Device Detected!',
+                `<b>📲 A new device is trying to access your account.</b>\n\n<b>🔐 Verification Code:</b> <code>${code}</code>\n\n<b>✋ If you are not the one who requested the code, just ignore this message.</b>`
             );
             return res.status(403).json({ error: 'new_device' });
         }
@@ -1092,19 +1094,22 @@ app.post('/api/resend-device-code', async (req, res) => {
             return res.status(400).json({ error: 'Invalid user' });
         }
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        await supabase
-            .from('verification_codes')
-            .upsert({
+        
+        await supabase.from('verification_codes').delete().eq('user_id', userId);
+            
+            await supabase.from('verification_codes').insert({
                 user_id: userId,
                 code: code,
                 expires_at: getCurrentTime() + 300000,
                 created_at: getCurrentTime(),
                 used: false
             });
+
+        
         await sendTelegramNotification(
             userId,
-            '🔄 New Verification Code',
-            `🔑 Your new verification code: \`${code}\`\n\n⏳ Valid for 5 minutes.`
+            '🔰 New Verification Code',
+            `🔑 Your new verification code: \`${code}\``
         );
         res.json({ success: true });
     } catch (error) {
