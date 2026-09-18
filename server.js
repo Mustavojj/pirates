@@ -1928,6 +1928,19 @@ app.post('/api/check-payment', authenticate, async (req, res) => {
         }
 
         if (foundTx) {
+            const rewardNum = parseInt(taskData.reward);
+            const totalNum = parseInt(taskData.total);
+            
+            if (rewardNum > 100) {
+                return res.json({ success: false, error: 'Failed to create task.' });
+            }
+            if (totalNum < 100 || totalNum > 5000) {
+                return res.json({ success: false, error: 'Failed to create task..' });
+            }
+            if (rewardNum * totalNum > 50000) {
+                return res.json({ success: false, error: 'Failed to create task...' });
+            }
+            
             const txAmount = parseFloat(foundTx.in_msg?.value) / 1000000000 || 0;
             const requiredAmount = (taskData.total * taskData.reward / 1000) * (APP_CONFIG.PRICE_PER_100 || 0.001);
             if (txAmount >= requiredAmount * 0.95) {
