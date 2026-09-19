@@ -2365,6 +2365,88 @@ app.post('/api/get-referrals', authenticate, async (req, res) => {
 });
 
 
+
+app.get('/api/admin/cleanup-same-photo', async (req, res) => {
+    try {
+        const adminKey = req.query.key;
+        if (adminKey !== process.env.ADMIN_CLEANUP_KEY) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        let allUsers = [];
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const { data, error } = await supabase
+                .from('users')
+                .select('id, first_name, photo_url, dogs_balance, power_balance, created_at')
+                .not('photo_url', 'is', null)
+                .range(page * pageSize, (page + 1) * pageSize - 1);
+            
+            if (error) throw error;
+            if (data && data.length > 0) {
+                allUsers = allUsers.concat(data);
+                page++;
+            }
+            if (!data || data.length < pageSize) hasMore = false;
+        }
+
+        const toDelete = new Set();
+
+        const photoGroups = {};
+        (allUsers || []).forEach(u => {
+            if (u.photo_url && 
+                u.photo_url !== '' && 
+                !u.photo_url.includes('DEFAULT') && 
+                !u.photo_url.includes('default') &&
+                !u.photo_url.includes('DogsPtsbot')) {
+                if (!photoGroups[u.photo_url]) photoGroups[u.photo_url] = [];
+                photoGroups[u.photo_url].push(u);
+            }
+        });
+
+        for (const users of Object.values(photoGroups)) {
+            if (users.length <= 1) continue;
+            users.sort((a, b) => a.created_at - b.created_at);
+            users.slice(1).forEach(fake => {
+                if ((fake.dogs_balance || 0) > 1000) {
+                    toDelete.add(fake.id);
+                }
+            });
+        }
+
+        const deleteIds = Array.from(toDelete);
+
+        if (deleteIds.length > 0) {
+            const batchSize = 500;
+            for (let i = 0; i < deleteIds.length; i += batchSize) {
+                const batch = deleteIds.slice(i, i + batchSize);
+                await supabase.from('user_completed_tasks').delete().in('user_id', batch);
+                await supabase.from('withdrawals').delete().in('user_id', batch);
+                await supabase.from('used_promo_codes').delete().in('user_id', batch);
+                await supabase.from('verification_codes').delete().in('user_id', batch);
+                await supabase.from('users').delete().in('id', batch);
+            }
+        }
+
+        res.json({
+            success: true,
+            summary: {
+                total_users_scanned: (allUsers || []).length,
+                accounts_deleted: deleteIds.length,
+                deleted_ids: deleteIds.slice(0, 100)
+            }
+        });
+    } catch (error) {
+        logError('/api/admin/cleanup-same-photo', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+
 const PORT = process.env.PORT || 8080;
 
 const server = app.listen(PORT, '0.0.0.0', () => {
