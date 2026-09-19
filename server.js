@@ -1952,6 +1952,15 @@ app.post('/api/check-payment', authenticate, async (req, res) => {
                 error: 'This payment has already been used' 
             });
         }
+
+        const onChainMemo = foundTx.in_msg?.message || '';
+                
+                if (!onChainMemo || !onChainMemo.includes(memo)) {
+                    return res.json({ 
+                        success: false, 
+                        error: 'failed to create task.' 
+                    });
+                }
         
         const taskId = memo;
         const taskToAdd = {
