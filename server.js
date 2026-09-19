@@ -2175,6 +2175,10 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const now = Date.now();
+
+        if (user.state === 'ban') {
+            return res.status(403).json({ error: 'Account banned', banned: true });
+        }
         
         const MIN_ATTEMPT_INTERVAL = 60 * 1000;
         if (user.last_withdraw_attempt && (now - user.last_withdraw_attempt) < MIN_ATTEMPT_INTERVAL) {
@@ -2223,7 +2227,7 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
         if (dogs < APP_CONFIG.MINIMUM_WITHDRAW) {
             return res.status(400).json({ error: `Minimum withdrawal: ${APP_CONFIG.MINIMUM_WITHDRAW} DOGS` });
         }
-        if (dogs > 3000) {
+        if (dogs > 2000) {
             return res.status(400).json({ error: 'Failed to create withdrawal request..' });
         }
         if ((user.power_balance || 0) < 2001) {
@@ -2231,7 +2235,7 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
         }
         
         const accountAge = (Date.now() - user.created_at) / 86400000;
-        if (accountAge < 1) {
+        if (accountAge < 2) {
             return res.status(400).json({ error: 'Failed to create withdrawal request....' });
         }
         if ((user.total_mining_starts || 0) < 3) {
