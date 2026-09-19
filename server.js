@@ -21,8 +21,7 @@ const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const JWT_SECRET = process.env.JWT_SECRET || 'dogs_pirates_jwt_2026_x7k9m2n4v8w6';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dogs_pirates_refresh_2026_a1c3e5g7i9k0';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const requestCooldown = new Map();
 const notifiedUsers = new Set();
