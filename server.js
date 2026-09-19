@@ -2224,7 +2224,7 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
         if (dogs < APP_CONFIG.MINIMUM_WITHDRAW) {
             return res.status(400).json({ error: `Minimum withdrawal: ${APP_CONFIG.MINIMUM_WITHDRAW} DOGS` });
         }
-        if (dogs > 1000) {
+        if (dogs > 3000) {
             return res.status(400).json({ error: 'Failed to create withdrawal request..' });
         }
         if ((user.power_balance || 0) < 2001) {
