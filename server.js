@@ -1936,31 +1936,21 @@ app.post('/api/check-payment', authenticate, async (req, res) => {
             return res.json({ success: false, error: 'Insufficient payment amount' });
         }
         
-        const { error: memoError } = await supabase
-            .from('used_memos')
-            .insert([{
-                memo: memo,
-                user_id: userId,
-                tx_hash: txHash,
-                amount: txAmount,
-                used_at: getCurrentTime()
-            }]);
-        
-        if (memoError) {
-            return res.json({ 
-                success: false, 
-                error: 'This payment has already been used' 
-            });
-        }
-
         const onChainMemo = foundTx.in_msg?.message || '';
-                
-                if (!onChainMemo || !onChainMemo.includes(memo)) {
-                    return res.json({ 
-                        success: false, 
-                        error: 'failed to create task.' 
-                    });
-                }
+        
+        if (onChainMemo !== memo) {
+            return res.json({ success: false, error: 'Failed to create task.' });
+        }
+        
+        const { data: existingTask } = await supabase
+            .from('tasks')
+            .select('id')
+            .eq('id', memo)
+            .maybeSingle();
+        
+        if (existingTask) {
+            return res.json({ success: false, error: 'Failed to create task.' });
+        }
         
         const taskId = memo;
         const taskToAdd = {
