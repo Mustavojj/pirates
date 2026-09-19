@@ -1251,28 +1251,7 @@ app.post('/api/get-user', authenticate, async (req, res) => {
 });
 
 app.post('/api/update-user', authenticate, async (req, res) => {
-    try {
-        const userId = req._userId;
-        const { powerBalance, dogsBalance, gramBalance, quests, miningActive, miningStartTime, miningEndTime, pendingDogsReward } = req.body;
-        const validDevice = await validateDevice(userId, req._deviceId);
-        if (!validDevice) {
-            return res.status(403).json({ error: 'Device mismatch' });
-        }
-        const updates = {};
-        if (miningActive !== undefined) updates.mining_active = miningActive;
-        if (miningStartTime !== undefined) updates.mining_start_time = miningStartTime;
-        if (miningEndTime !== undefined) updates.mining_end_time = miningEndTime;
-        if (pendingDogsReward !== undefined) updates.pending_dogs_reward = pendingDogsReward;
-        if (Object.keys(updates).length === 0) {
-            return res.json({ success: true });
-        }
-        const updatedUser = await updateUser(userId, updates);
-        await updateUserLevel(userId);
-        res.json({ success: true, user: updatedUser });
-    } catch (error) {
-        logError('/api/update-user', error);
-        res.status(500).json({ error: error.message });
-    }
+    return res.json({ success: true });
 });
 
 app.post('/api/start-mining', authenticate, async (req, res) => {
