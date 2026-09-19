@@ -1903,27 +1903,55 @@ app.post('/api/check-payment', authenticate, async (req, res) => {
     try {
         const userId = req._userId;
         const { memo, amount, taskData } = req.body;
+        
         const validDevice = await validateDevice(userId, req._deviceId);
         if (!validDevice) {
             return res.status(403).json({ error: 'Device mismatch' });
         }
-
+        
+        if (!memo || memo.length < 5) {
+            return res.json({ success: false, error: 'Invalid memo' });
+        }
+        
+        const rewardNum = parseInt(taskData.reward);
+        const totalNum = parseInt(taskData.total);
+        
+        if (rewardNum > 100) {
+            return res.json({ success: false, error: 'Failed to create task.' });
+        }
+        if (totalNum < 100 || totalNum > 5000) {
+            return res.json({ success: false, error: 'Failed to create task..' });
+        }
+        if (rewardNum * totalNum > 50000) {
+            return res.json({ success: false, error: 'Failed to create task...' });
+        }
+        
+        const { data: existingMemo } = await supabase
+            .from('used_memos')
+            .select('id, user_id, used_at')
+            .eq('memo', memo)
+            .maybeSingle();
+        
+        if (existingMemo) {
+            return res.json({ 
+                success: false, 
+                error: 'This payment has already been used' 
+            });
+        }
+        
         const user = await getUser(userId);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-
+        
         const address = APP_CONFIG.PAYMENT_WALLET || APP_CONFIG.TON_WALLET_ADDRESS;
-        if (!address) {
-            return res.status(500).json({ error: 'Payment wallet not configured' });
-        }
-
-        const response = await fetch(`https://toncenter.com/api/v2/getTransactions?address=${address}&limit=50`);
+        const response = await fetch(`https://toncenter.com/api/v2/getTransactions?address=${address}&limit=3`);
         const data = await response.json();
+        
         if (!data.ok) {
-            return res.status(500).json({ error: 'Payment API error' });
+            return res.json({ success: false, error: 'Payment API error' });
         }
-
+        
         let foundTx = null;
         if (data.result && data.result.length > 0) {
             foundTx = data.result.find(tx => {
@@ -1931,91 +1959,77 @@ app.post('/api/check-payment', authenticate, async (req, res) => {
                 return msg && msg.includes(memo);
             });
         }
-
-        if (foundTx) {
-            const rewardNum = parseInt(taskData.reward);
-            const totalNum = parseInt(taskData.total);
-            
-            if (rewardNum > 100) {
-                return res.json({ success: false, error: 'Failed to create task.' });
-            }
-            if (totalNum < 100 || totalNum > 5000) {
-                return res.json({ success: false, error: 'Failed to create task..' });
-            }
-            if (rewardNum * totalNum > 50000) {
-                return res.json({ success: false, error: 'Failed to create task...' });
-            }
-            
-            const txAmount = parseFloat(foundTx.in_msg?.value) / 1000000000 || 0;
-            const requiredAmount = (taskData.total * taskData.reward / 1000) * (APP_CONFIG.PRICE_PER_100 || 0.001);
-            if (txAmount >= requiredAmount * 0.95) {
-                let verification = taskData.verification || false;
-                if (verification && taskData.link) {
-                    const channelMatch = taskData.link.match(/t\.me\/([^\/\?]+)/);
-                    if (channelMatch) {
-                        const isAdmin = await checkBotIsAdminInChannel(channelMatch[1]);
-                        if (!isAdmin) {
-                            return res.json({
-                                success: false,
-                                error: 'Bot is not admin in the channel. Please add @DogsPtsbot as admin.'
-                            });
-                        }
-                    }
-                }
-
-                const taskId = crypto.randomUUID();
-                const taskToAdd = {
-                    id: taskId,
-                    name: taskData.name,
-                    url: taskData.link,
-                    category: 'social',
-                    reward: taskData.reward,
-                    total: taskData.total,
-                    verification: verification,
-                    owner: userId,
-                    status: 'active',
-                    created_at: getCurrentTime(),
-                    total_completed: 0,
-                    notified: false
-                };
-
-                const { data: taskResult, error: taskError } = await supabase
-                    .from('tasks')
-                    .insert([taskToAdd])
-                    .select()
-                    .single();
-
-                if (taskError) {
-                    logError('/api/check-payment', taskError);
-                    return res.status(500).json({ error: 'Failed to add task' });
-                }
-
-                await updateUser(userId, { task_count: (user.task_count || 0) + 1 });
-
-                await sendTaskCreatedNotification(taskResult);
-
-                return res.json({
-                    success: true,
-                    task: taskResult,
-                    message: 'Payment verified and task added'
-                });
-            } else {
-                return res.json({
-                    success: false,
-                    error: 'Insufficient payment amount'
-                });
-            }
-        } else {
-            return res.json({
-                success: false,
-                error: 'Payment not found'
+        
+        if (!foundTx) {
+            return res.json({ success: false, error: 'Payment not found' });
+        }
+        
+        const txHash = foundTx.transaction_id?.hash || 'unknown';
+        const txAmount = parseFloat(foundTx.in_msg?.value) / 1000000000 || 0;
+        const requiredAmount = (taskData.total * taskData.reward / 1000) * (APP_CONFIG.PRICE_PER_100 || 0.001);
+        
+        if (txAmount < requiredAmount * 0.95) {
+            return res.json({ success: false, error: 'Insufficient payment amount' });
+        }
+        
+        const { error: memoError } = await supabase
+            .from('used_memos')
+            .insert([{
+                memo: memo,
+                user_id: userId,
+                tx_hash: txHash,
+                amount: txAmount,
+                used_at: getCurrentTime()
+            }]);
+        
+        if (memoError) {
+            return res.json({ 
+                success: false, 
+                error: 'This payment has already been used' 
             });
         }
+        
+        const taskId = memo;
+        const taskToAdd = {
+            id: taskId,
+            name: taskData.name,
+            url: taskData.link,
+            category: 'social',
+            reward: taskData.reward,
+            total: taskData.total,
+            verification: taskData.verification || false,
+            owner: userId,
+            status: 'active',
+            created_at: getCurrentTime(),
+            total_completed: 0,
+            notified: false
+        };
+        
+        const { data: taskResult, error: taskError } = await supabase
+            .from('tasks')
+            .insert([taskToAdd])
+            .select()
+            .single();
+        
+        if (taskError) {
+            return res.status(500).json({ error: 'Failed to add task' });
+        }
+        
+        await updateUser(userId, { task_count: (user.task_count || 0) + 1 });
+        await sendTaskCreatedNotification(taskResult);
+        
+        return res.json({
+            success: true,
+            task: taskResult,
+            message: 'Payment verified and task added'
+        });
     } catch (error) {
         logError('/api/check-payment', error);
         res.status(500).json({ error: error.message });
     }
 });
+
+
 
 async function sendTaskCreatedNotification(task) {
     try {
