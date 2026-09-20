@@ -555,7 +555,7 @@ async function sendWithdrawalProof(channelId, userId, wallet, dogsAmount, txHash
                     }],
                     [{
                         text: '🏴‍☠️ DOGS PIRATES',
-                        url: 'https://t.me/DogsPtsbot/app'
+                        url: 'https://t.me/DogsPtsbot?start=start'
                     }]
                 ]
             }
