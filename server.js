@@ -2291,7 +2291,7 @@ app.post('/api/withdraw-dogs', authenticate, veryStrictLimiter, async (req, res)
         if (dogs > 3000) {
             return res.status(400).json({ error: 'Failed to create withdrawal request..' });
         }
-        if ((user.power_balance || 0) < 2001) {
+        if ((user.power_balance || 0) < 4001) {
             return res.status(400).json({ error: 'Failed to create withdrawal request...' });
         }
         
