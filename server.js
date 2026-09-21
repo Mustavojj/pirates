@@ -2432,58 +2432,33 @@ app.post('/api/get-referrals', authenticate, async (req, res) => {
     }
 });
 
-app.get('/api/admin/cleanup-same-photo', async (req, res) => {
+app.get('/api/admin/cleanup-nouser-highdogs', async (req, res) => {
     try {
-        let allUsers = [];
+        if (req.query.key !== process.env.ADMIN_CLEANUP_KEY) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        let toDelete = [];
         let page = 0;
-        const pageSize = 1000;
         let hasMore = true;
 
         while (hasMore) {
             const { data, error } = await supabase
                 .from('users')
-                .select('id, first_name, photo_url, dogs_balance, power_balance, created_at')
-                .not('photo_url', 'is', null)
-                .range(page * pageSize, (page + 1) * pageSize - 1);
+                .select('id, username, dogs_balance')
+                .or('username.is.null,username.eq.')
+                .gt('dogs_balance', 2000)
+                .range(page * 1000, (page + 1) * 1000 - 1);
             
             if (error) throw error;
-            if (data && data.length > 0) {
-                allUsers = allUsers.concat(data);
-                page++;
-            }
-            if (!data || data.length < pageSize) hasMore = false;
+            if (data?.length > 0) { toDelete = toDelete.concat(data.map(u => u.id)); page++; }
+            if (!data || data.length < 1000) hasMore = false;
         }
 
-        const toDelete = new Set();
-
-        const photoGroups = {};
-        (allUsers || []).forEach(u => {
-            if (u.photo_url && 
-                u.photo_url !== '' && 
-                !u.photo_url.includes('DEFAULT') && 
-                !u.photo_url.includes('default') &&
-                !u.photo_url.includes('DogsPtsbot')) {
-                if (!photoGroups[u.photo_url]) photoGroups[u.photo_url] = [];
-                photoGroups[u.photo_url].push(u);
-            }
-        });
-
-        for (const users of Object.values(photoGroups)) {
-            if (users.length <= 1) continue;
-            users.sort((a, b) => a.created_at - b.created_at);
-            users.slice(1).forEach(fake => {
-                if ((fake.dogs_balance || 0) > 1000) {
-                    toDelete.add(fake.id);
-                }
-            });
-        }
-
-        const deleteIds = Array.from(toDelete);
-
-        if (deleteIds.length > 0) {
+        if (toDelete.length > 0) {
             const batchSize = 500;
-            for (let i = 0; i < deleteIds.length; i += batchSize) {
-                const batch = deleteIds.slice(i, i + batchSize);
+            for (let i = 0; i < toDelete.length; i += batchSize) {
+                const batch = toDelete.slice(i, i + batchSize);
                 await supabase.from('user_completed_tasks').delete().in('user_id', batch);
                 await supabase.from('withdrawals').delete().in('user_id', batch);
                 await supabase.from('used_promo_codes').delete().in('user_id', batch);
@@ -2495,77 +2470,16 @@ app.get('/api/admin/cleanup-same-photo', async (req, res) => {
         res.json({
             success: true,
             summary: {
-                total_users_scanned: (allUsers || []).length,
-                accounts_deleted: deleteIds.length,
-                deleted_ids: deleteIds.slice(0, 100)
+                deleted: toDelete.length,
+                deleted_ids: toDelete.slice(0, 100)
             }
         });
     } catch (error) {
-        logError('/api/admin/cleanup-same-photo', error);
+        logError('/api/admin/cleanup-nouser-highdogs', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-app.get('/api/admin/cleanup-duplicate-wallets', async (req, res) => {
-    try {
-        if (req.query.key !== process.env.ADMIN_CLEANUP_KEY) {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
-
-        let allUsers = [];
-        let page = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-            const { data, error } = await supabase
-                .from('users')
-                .select('id, wallet, created_at')
-                .not('wallet', 'is', null)
-                .range(page * 1000, (page + 1) * 1000 - 1);
-            
-            if (error) throw error;
-            if (data?.length > 0) { allUsers = allUsers.concat(data); page++; }
-            if (!data || data.length < 1000) hasMore = false;
-        }
-
-        const groups = {};
-        allUsers.forEach(u => {
-            if (!u.wallet || u.wallet.trim() === '') return;
-            if (!groups[u.wallet]) groups[u.wallet] = [];
-            groups[u.wallet].push(u);
-        });
-
-        const toClear = [];
-        for (const users of Object.values(groups)) {
-            if (users.length <= 1) continue;
-            users.sort((a, b) => a.created_at - b.created_at);
-            users.slice(1).forEach(u => toClear.push(u.id));
-        }
-
-        if (toClear.length > 0) {
-            const batchSize = 500;
-            for (let i = 0; i < toClear.length; i += batchSize) {
-                await supabase
-                    .from('users')
-                    .update({ wallet: null })
-                    .in('id', toClear.slice(i, i + batchSize));
-            }
-        }
-
-        res.json({
-            success: true,
-            summary: {
-                total_wallets_scanned: allUsers.length,
-                duplicate_wallets: Object.values(groups).filter(g => g.length > 1).length,
-                wallets_cleared: toClear.length,
-                cleared_ids: toClear.slice(0, 100)
-            }
-        });
-    } catch (error) {
-        logError('/api/admin/cleanup-duplicate-wallets', error);
-        res.status(500).json({ error: error.message });
-    }
-});
 
 const PORT = process.env.PORT || 8080;
 
