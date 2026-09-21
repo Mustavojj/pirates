@@ -257,7 +257,10 @@ const translations = {
         payouts_channel: "Payouts Channel",
         payouts_channel_desc: "Get live payouts notifications",
         tasks_channel: "Tasks Channel",
-        tasks_channel_desc: "Get live tasks notifications"
+        tasks_channel_desc: "Get live tasks notifications",
+        not_registered_title: "Not Registered",
+        not_registered_message: "You need to start the bot first to register your account.",
+        register_now: "Register Now"
     },
     ar: {
         level: "المستوى",
@@ -517,7 +520,10 @@ const translations = {
         payouts_channel: "قناة المدفوعات",
         payouts_channel_desc: "احصل على إشعارات المدفوعات المباشرة",
         tasks_channel: "قناة المهام",
-        tasks_channel_desc: "احصل على إشعارات المهام المباشرة"
+        tasks_channel_desc: "احصل على إشعارات المهام المباشرة",
+        not_registered_title: "غير مسجل",
+        not_registered_message: "يجب أن تبدأ البوت أولاً لتسجيل حسابك.",
+        register_now: "سجل الآن"
     },
     ru: {
         level: "Уровень",
@@ -778,6 +784,9 @@ const translations = {
         payouts_channel_desc: "Получайте уведомления о выплатах в реальном времени",
         tasks_channel: "Канал заданий",
         tasks_channel_desc: "Получайте уведомления о заданиях в реальном времени",
+        not_registered_title: "Не зарегистрирован",
+        not_registered_message: "Сначала запустите бота, чтобы зарегистрировать аккаунт.",
+        register_now: "Зарегистрироваться"
     },
     fa: {
         level: "سطح",
@@ -1037,7 +1046,10 @@ const translations = {
         payouts_channel: "کانال پرداخت‌ها",
         payouts_channel_desc: "اعلان‌های پرداخت زنده را دریافت کنید",
         tasks_channel: "کانال وظایف",
-        tasks_channel_desc: "اعلان‌های وظایف زنده را دریافت کنید"
+        tasks_channel_desc: "اعلان‌های وظایف زنده را دریافت کنید",
+        not_registered_title: "ثبت نشده",
+        not_registered_message: "ابتدا باید ربات را استارت کنید تا حساب شما ثبت شود.",
+        register_now: "ثبت نام کنید"
     }
 };
 
@@ -1074,7 +1086,7 @@ class App {
         this.miningInterval = null;
         this.uiUpdateInterval = null;
         this.pendingDogsReward = 0;
-        this.miningSessionHours = 1;
+        this.miningSessionHours = 12;
         this.withdrawals = [];
         this.totalReferrals = 0;
         this.referralPower = 0;
@@ -1111,6 +1123,7 @@ class App {
 
         this.membershipCache = new Map();
         this.requestCooldown = new Map();
+        this._lastFetchTime = new Map();
 
         this.quests = {
             welcomeBonusClaimed: false,
@@ -1256,11 +1269,9 @@ class App {
     checkCooldown(endpoint) {
         const now = Date.now();
         const key = `${endpoint}_${this.tgUser?.id || 'user'}`;
-        const lastCall = this.requestCooldown.get(key) || 0;
-        if (now - lastCall < 3000) {
-            return false;
-        }
-        this.requestCooldown.set(key, now);
+        const lastCall = this._lastFetchTime.get(key) || 0;
+        if (now - lastCall < 1500) return false;
+        this._lastFetchTime.set(key, now);
         return true;
     }
 
@@ -1270,22 +1281,17 @@ class App {
         }
 
         try {
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-
-            if (this.jwtToken) {
-                headers['Authorization'] = `Bearer ${this.jwtToken}`;
-            }
+            const headers = { 'Content-Type': 'application/json' };
+            if (this.jwtToken) headers['Authorization'] = `Bearer ${this.jwtToken}`;
 
             const payload = {
                 ...data,
                 userId: this.tgUser?.id,
                 username: this.tgUser?.username || '',
                 firstName: this.tgUser?.first_name || 'User',
-                photoUrl: this.tgUser?.photo_url || this.config.DEFAULT_USER_AVATAR,
-                deviceId: this.userDeviceId
+                photoUrl: this.tgUser?.photo_url || this.config.DEFAULT_USER_AVATAR
             };
+            if (this.userDeviceId) payload.deviceId = this.userDeviceId;
 
             const response = await fetch(`${this.serverUrl}${endpoint}`, {
                 method: 'POST',
@@ -1295,18 +1301,20 @@ class App {
 
             const result = await response.json();
 
-            if (result.error === 'Invalid token' || result.error === 'Token expired' || result.error === 'No token provided') {
+            if (result.error === 'Invalid token' || result.error === 'Token expired' || result.error === 'No token provided' || result.error === 'Invalid or expired token') {
                 const refreshed = await this.refreshToken();
-                if (refreshed) {
-                    return this.fetchFromServer(endpoint, data);
-                } else {
-                    this.isAuthenticated = false;
-                    this.showNotification('Error', 'Session expired. Please restart the app.', 'error');
-                    throw new Error('Auth required');
-                }
+                if (refreshed) return this.fetchFromServer(endpoint, data);
+                this.isAuthenticated = false;
+                this.showNotification('Error', 'Session expired. Please restart the app.', 'error');
+                throw new Error('Auth required');
             }
 
-            if (result.error === 'Device mismatch' || result.error === 'device_already_used') {
+            if (result.error === 'user_not_registered') {
+                this.showNotRegisteredPage();
+                throw new Error('Not registered');
+            }
+
+            if (result.error === 'device_mismatch' || result.error === 'Device mismatch' || result.error === 'device_already_used') {
                 this.showNotification('Error', result.message || 'Device verification failed', 'error');
                 throw new Error('Device error');
             }
@@ -1323,9 +1331,7 @@ class App {
 
             return result;
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
-                throw error;
-            }
+            if (['Cooldown','Banned','New device','Auth required','Device error','Not registered'].includes(error.message)) throw error;
             console.error('Server fetch error:', error);
             throw error;
         }
@@ -1345,15 +1351,15 @@ class App {
         try {
             const config = await this.getFromServer('/api/config');
             this.config = config;
-            this.miningSessionHours = config.MINING_SESSION_HOURS || 1;
+            this.miningSessionHours = config.MINING_SESSION_HOURS || 12;
             this.socialDogsReward = config.SOCIAL_DOGS_REWARD || 1;
             this.adRewardPower = config.AD_REWARD_POWER || 20;
             return config;
         } catch (error) {
             console.error('Failed to load config:', error);
-            };
             return this.config;
         }
+    }
 
     async getServerTime() {
         try {
@@ -1372,22 +1378,20 @@ class App {
 
     generateDeviceId() {
         const user = this.tgUser;
-        const data = `${user.id}_${user.username || ''}_${user.first_name || ''}`;
+        const data = `${user.id}_${user.username || ''}_${user.first_name || ''}_${Date.now()}`;
         let hash = 0;
         for (let i = 0; i < data.length; i++) {
             const char = data.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash;
         }
-        return 'dev_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
+        return 'dev_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10);
     }
 
     async authenticate() {
         try {
             const savedToken = localStorage.getItem('dogs_pirates_jwt');
-            if (savedToken) {
-                this.jwtToken = savedToken;
-            }
+            if (savedToken) this.jwtToken = savedToken;
 
             const result = await this.fetchFromServer('/api/auth', {
                 userId: this.tgUser.id,
@@ -1402,18 +1406,28 @@ class App {
                 return false;
             }
 
+            if (result.error === 'user_not_registered') {
+                this.showNotRegisteredPage();
+                return false;
+            }
+
             if (result.token) {
                 this.jwtToken = result.token;
                 localStorage.setItem('dogs_pirates_jwt', result.token);
+                if (result.deviceId) {
+                    this.userDeviceId = result.deviceId;
+                    localStorage.setItem('dogs_pirates_device_id', result.deviceId);
+                } else if (result.user?.device_id) {
+                    this.userDeviceId = result.user.device_id;
+                    localStorage.setItem('dogs_pirates_device_id', result.user.device_id);
+                }
                 this.isAuthenticated = true;
                 return true;
             }
 
             return false;
         } catch (error) {
-            if (error.message === 'New device') {
-                return false;
-            }
+            if (error.message === 'New device' || error.message === 'Not registered' || error.message === 'Cooldown') return false;
             console.error('Authentication failed:', error);
             this.showNotification('Error', 'Authentication failed. Please restart the app.', 'error');
             return false;
@@ -1426,6 +1440,10 @@ class App {
             if (result.token) {
                 this.jwtToken = result.token;
                 localStorage.setItem('dogs_pirates_jwt', result.token);
+                if (result.deviceId) {
+                    this.userDeviceId = result.deviceId;
+                    localStorage.setItem('dogs_pirates_device_id', result.deviceId);
+                }
                 this.isAuthenticated = true;
                 return true;
             }
@@ -1446,6 +1464,13 @@ class App {
             if (result.success && result.token) {
                 this.jwtToken = result.token;
                 localStorage.setItem('dogs_pirates_jwt', result.token);
+                if (result.deviceId) {
+                    this.userDeviceId = result.deviceId;
+                    localStorage.setItem('dogs_pirates_device_id', result.deviceId);
+                } else if (result.user?.device_id) {
+                    this.userDeviceId = result.user.device_id;
+                    localStorage.setItem('dogs_pirates_device_id', result.user.device_id);
+                }
                 this.isAuthenticated = true;
                 return true;
             }
@@ -1541,6 +1566,28 @@ class App {
         }
     }
 
+    showNotRegisteredPage() {
+        const existing = document.getElementById('not-registered-page');
+        if (existing) return;
+        const page = document.createElement('div');
+        page.id = 'not-registered-page';
+        page.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:#0A0A0A;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;padding:20px;text-align:center;gap:20px;`;
+        page.innerHTML = `
+            <div style="font-size:80px;">🏴‍☠️</div>
+            <h2 style="color:#3B82F6;font-size:1.5rem;font-weight:700;margin:0;">${this.t('not_registered_title')}</h2>
+            <p style="color:#888;font-size:0.9rem;max-width:300px;line-height:1.6;margin:0;">${this.t('not_registered_message')}</p>
+            <a href="https://t.me/DogsPtsbot?start=start" target="_blank" style="display:inline-flex;align-items:center;gap:10px;padding:14px 32px;background:linear-gradient(135deg,#3B82F6,#1E40AF);border-radius:60px;color:#fff;font-weight:700;text-decoration:none;box-shadow:0 5px 25px rgba(59,130,246,0.4);">
+                <i class="fas fa-rocket"></i>
+                ${this.t('register_now')}
+            </a>
+        `;
+        document.body.appendChild(page);
+        const app = document.getElementById('app');
+        if (app) app.style.display = 'none';
+        const loader = document.getElementById('app-loader');
+        if (loader) loader.style.display = 'none';
+    }
+
     async loadUserData() {
         if (this._userDataLoaded) return;
 
@@ -1561,11 +1608,19 @@ class App {
             });
 
             if (result.error) {
-                console.error('Error loading user:', result.error);
                 if (result.error === 'Account banned') {
                     this.showBanModal();
                     return;
                 }
+                if (result.error === 'user_not_registered') {
+                    this.showNotRegisteredPage();
+                    return;
+                }
+                if (result.error === 'Too many requests') {
+                    setTimeout(() => this.loadUserData(), 3000);
+                    return;
+                }
+                console.error('Error loading user:', result.error);
                 this.showNotification('Error', 'Failed to load user data: ' + result.error, 'error');
                 this.vibrate('error');
                 return;
@@ -1599,6 +1654,11 @@ class App {
             this.userWallet = user.wallet || null;
             this.isAuthenticated = true;
             this.userTaskCount = user.task_count || 0;
+
+            if (user.device_id && !this.userDeviceId) {
+                this.userDeviceId = user.device_id;
+                localStorage.setItem('dogs_pirates_device_id', user.device_id);
+            }
 
             if (user.quests) {
                 this.quests = user.quests;
@@ -1636,9 +1696,7 @@ class App {
             document.getElementById('app').style.display = 'block';
 
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
-                return;
-            }
+            if (['Cooldown','Banned','New device','Auth required','Device error','Not registered'].includes(error.message)) return;
             console.error('loadUserData error:', error);
             this.showNotification('Error', 'Failed to load user data', 'error');
             this.vibrate('error');
@@ -1685,8 +1743,6 @@ class App {
 
             if (result.error) {
                 console.error('Save error:', result.error);
-                this.showNotification('Error', this.t('save_error'), 'error');
-                this.vibrate('error');
                 this._isSaving = false;
                 return false;
             }
@@ -1699,13 +1755,7 @@ class App {
 
             return true;
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
-                this._isSaving = false;
-                return false;
-            }
-            console.error('Failed to save user data:', error);
-            this.showNotification('Error', this.t('save_error'), 'error');
-            this.vibrate('error');
+            this._isSaving = false;
             return false;
         } finally {
             this._isSaving = false;
@@ -1746,7 +1796,7 @@ class App {
 
             return true;
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return false;
             }
             console.error('Complete task error:', error);
@@ -1794,7 +1844,7 @@ class App {
 
             return false;
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return false;
             }
             console.error('Claim quest error:', error);
@@ -1829,7 +1879,7 @@ class App {
 
             return false;
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return false;
             }
             console.error('Convert error:', error);
@@ -1880,7 +1930,7 @@ class App {
 
             return false;
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return false;
             }
             console.error('Claim referral earnings error:', error);
@@ -1915,7 +1965,7 @@ class App {
 
             return false;
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return false;
             }
             console.error('Watch ad error:', error);
@@ -2001,7 +2051,7 @@ class App {
 
             return false;
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return false;
             }
             console.error('Set wallet error:', error);
@@ -2012,7 +2062,7 @@ class App {
     }
 
     getMiningProgressPercent() {
-        if (!this.miningActive || !this.miningStartTime || !this.miningEndTime) return 0;
+        if (!this.miningActive || !this.miningStartTime) return 0;
         const totalDuration = this.miningSessionHours * 3600000;
         const elapsed = Math.min(totalDuration, this.getCurrentTime() - this.miningStartTime);
         return (elapsed / totalDuration) * 100;
@@ -2158,9 +2208,10 @@ class App {
         if (this.uiUpdateInterval) clearInterval(this.uiUpdateInterval);
 
         this.miningInterval = setInterval(async () => {
-            if (!this.miningActive) return;
-            const currentTime = this.getCurrentTime();
-            if (this.miningEndTime && currentTime >= this.miningEndTime) {
+            if (!this.miningActive || !this.miningStartTime) return;
+            const totalDuration = this.miningSessionHours * 3600000;
+            const elapsed = this.getCurrentTime() - this.miningStartTime;
+            if (elapsed >= totalDuration) {
                 await this.stopMining();
             }
             this.updateMiningRing();
@@ -2175,10 +2226,11 @@ class App {
     }
 
     updateMiningTimerDisplay() {
-        if (!this.miningEndTime) return;
+        if (!this.miningStartTime) return;
 
-        const currentTime = this.getCurrentTime();
-        const remaining = Math.max(0, (this.miningEndTime - currentTime) / 1000);
+        const totalDuration = this.miningSessionHours * 3600000;
+        const elapsed = this.getCurrentTime() - this.miningStartTime;
+        const remaining = Math.max(0, (totalDuration - elapsed) / 1000);
 
         if (remaining <= 0 && this.miningActive) {
             this.stopMining();
@@ -2233,7 +2285,7 @@ class App {
             return true;
 
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return false;
             }
             console.error('Apply promo error:', error);
@@ -2260,7 +2312,7 @@ class App {
             return tasks || [];
             
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return [];
             }
             console.error('Load tasks error:', error);
@@ -2344,7 +2396,7 @@ class App {
                         </div>
                     </div>
                     <div class="task-actions">
-                        <button class="action-btn delete" data-id="${task.id}">${this.t('delete_task')}</button>
+                        <button class="action-btn delete" data-id="${task.id}">Delete</button>
                     </div>
                 </div>
             `;
@@ -2534,7 +2586,7 @@ class App {
             this._withdrawLock = false;
 
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 if (withdrawBtn) {
                     withdrawBtn.disabled = false;
                     withdrawBtn.innerHTML = this.t('confirm_withdrawal');
@@ -3169,7 +3221,6 @@ class App {
 
         const memo = 'task_' + userId + '_' + (this.userTaskCount + 1);
         const amount = (this.pendingTaskData.total * this.pendingTaskData.reward / 1000) * (this.config.PRICE_PER_100 || 0.001);
-        const nanoAmount = Math.floor(amount * 1000000000);
 
         const walletDisplayEl = document.getElementById('payment-wallet-display');
         const memoDisplay = document.getElementById('payment-memo-display');
@@ -3370,7 +3421,7 @@ class App {
             });
 
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return;
             }
             console.error('Load main tasks error:', error);
@@ -3506,7 +3557,7 @@ class App {
             });
 
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return;
             }
             console.error('Load partner tasks error:', error);
@@ -3644,7 +3695,7 @@ class App {
             });
 
         } catch (error) {
-            if (error.message === 'Cooldown' || error.message === 'Banned' || error.message === 'New device' || error.message === 'Auth required' || error.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                 return;
             }
             console.error('Load social tasks error:', error);
@@ -3825,7 +3876,7 @@ class App {
                     this.renderTeam();
                 }
             } catch (error) {
-                if (error.message !== 'Cooldown' && error.message !== 'Banned' && error.message !== 'New device' && error.message !== 'Auth required' && error.message !== 'Device error') {
+                if (!['Cooldown','Banned','New device','Auth required','Device error'].includes(error.message)) {
                     this.showNotification('Error', 'Failed to setup promotion', 'error');
                     this.vibrate('error');
                 }
@@ -3855,13 +3906,14 @@ class App {
             const statusText = statusClass === 'completed' ? this.t('completed') : (statusClass === 'processing' ? 'PROCESSING' : this.t('pending'));
             const explorerLink = statusClass === 'completed' && w.tx_hash ? 
                 `<a href="https://tonscan.org/tx/${w.tx_hash}" target="_blank" class="history-explorer-link"><i class="fas fa-arrow-up-right-from-square"></i> ${this.t('view_on_explorer')}</a>` : '';
+            const dogsAmount = w.dogs_amount || w.amount || 0;
             return `
             <div class="history-item blue-item">
                 <div class="history-details">
                     <div class="history-amount">
                         <img src="${this.config.DOGS_ICON}" style="width:16px;height:16px;border-radius:50%;">
                         <span style="font-weight:600;">${Math.floor(w.amount)}</span>
-                        <span style="color:#888;font-size:0.65rem;">- ${w.dogs_amount.toFixed(2)} DOGS</span>
+                        <span style="color:#888;font-size:0.65rem;">- ${dogsAmount.toFixed(2)} DOGS</span>
                     </div>
                     <div class="history-date" style="font-size:0.6rem;color:#666;">${dateStr} ${timeStr}</div>
                     ${explorerLink}
@@ -4077,7 +4129,6 @@ class App {
         try {
             await this.fetchFromServer('/api/check-mining-status', {});
         } catch (error) {
-        
         }
     }
 
@@ -4119,6 +4170,10 @@ class App {
                 return;
             }
 
+            if (!this.isAuthenticated) {
+                return;
+            }
+
             const headerHtml = `
                 <div class="header-balances" id="header-balances">
                     <div class="header-balance" id="header-power"><i class="fas fa-bolt"></i> ${this.formatNumber(Math.floor(this.powerBalance))}</div>
@@ -4130,9 +4185,10 @@ class App {
                 headerActions.insertAdjacentHTML('afterbegin', headerHtml);
             }
 
-            if (this.miningActive && this.miningEndTime) {
-                const currentTime = this.getCurrentTime();
-                if (currentTime >= this.miningEndTime) {
+            if (this.miningActive && this.miningStartTime) {
+                const totalDuration = this.miningSessionHours * 3600000;
+                const elapsed = this.getCurrentTime() - this.miningStartTime;
+                if (elapsed >= totalDuration) {
                     await this.stopMining();
                 } else {
                     this.startMiningLoop();
@@ -4153,7 +4209,7 @@ class App {
             this.isInitialized = true;
 
         } catch (err) {
-            if (err.message === 'Cooldown' || err.message === 'Banned' || err.message === 'New device' || err.message === 'Auth required' || err.message === 'Device error') {
+            if (['Cooldown','Banned','New device','Auth required','Device error','Not registered'].includes(err.message)) {
                 return;
             }
             console.error('Initialization error:', err);
