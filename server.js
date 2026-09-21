@@ -4,6 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 
@@ -11,8 +12,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(express.static(__dirname));
 
@@ -34,6 +36,35 @@ function logError(endpoint, error) {
         console.error(`📚 Stack:`, error.stack);
     }
 }
+
+const generalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    keyGenerator: (req) => req._userId?.toString() || req.ip,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please slow down.' }
+});
+
+const strictLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    keyGenerator: (req) => req._userId?.toString() || req.ip,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please wait.' }
+});
+
+const veryStrictLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    keyGenerator: (req) => req._userId?.toString() || req.ip,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please wait longer.' }
+});
+
+app.use('/api/', generalLimiter);
 
 async function isDeviceUsedByOtherUser(deviceId, currentUserId) {
     if (!deviceId) return false;
@@ -58,7 +89,7 @@ function checkCooldown(userId, endpoint) {
     const now = Date.now();
     const key = `${userId}_${endpoint}`;
     const lastCall = requestCooldown.get(key) || 0;
-    if (now - lastCall < 3000) return false;
+    if (now - lastCall < 1500) return false;
     requestCooldown.set(key, now);
     return true;
 }
@@ -282,7 +313,7 @@ async function checkLargeTransaction(userId, amount, source) {
     if (amount >= 500) {
         const user = await getUser(userId);
         const adminId = process.env.ADMIN_USER_ID;
-        if (adminId) {
+        if (adminId && user) {
             await sendTelegramNotification(
                 adminId,
                 '💰 LARGE TRANSACTION!',
@@ -343,6 +374,7 @@ async function updateUser(userId, updates) {
             .select()
             .single();
         if (error) throw error;
+        getUserCache.delete(`getUser_${userId}`);
         return data;
     } catch (error) {
         throw error;
@@ -364,7 +396,7 @@ async function getTasks(category, userId) {
             .from('user_completed_tasks')
             .select('task_id')
             .eq('user_id', userId);
-        const completedIds = new Set(completed.map(t => t.task_id));
+        const completedIds = new Set(completed?.map(t => t.task_id) || []);
         const availableTasks = tasks.filter(task => !completedIds.has(task.id));
         return availableTasks || [];
     } catch (error) {
@@ -497,7 +529,7 @@ async function updateStats(statName, increment) {
 }
 
 async function sendTelegramNotification(userId, title, message, inlineButton = null) {
-    if (!BOT_TOKEN) return;
+    if (!BOT_TOKEN || !userId) return;
     try {
         const payload = {
             chat_id: userId,
@@ -786,15 +818,15 @@ app.post('/api/check-bot-admin', authenticate, async (req, res) => {
     }
 });
 
-
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
         const update = req.body;
         
-         if (update.message && update.message.chat && update.message.chat.type === 'private') {
+        if (update.message && update.message.chat && update.message.chat.type === 'private') {
             const chatId = update.message.chat.id;
             const username = update.message.chat.username || '';
             const firstName = update.message.chat.first_name || 'User';
+            const photoUrl = update.message.chat.photo_url || APP_CONFIG.DEFAULT_USER_AVATAR;
             const text = update.message.text;
             
             let referrerId = null;
@@ -809,36 +841,102 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
                 ? `https://t.me/DogsPtsbot/app?startapp=${referrerId}`
                 : `https://t.me/DogsPtsbot/app`;
 
-await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        chat_id: chatId,
-        photo: 'https://i.ibb.co/jvBSQfvf/IMG-20260914-192504-728.jpg',
-        caption: 
-            `<b>🏴‍☠️ Welcome to DOGS PIRATES!</b>\n\n` +
-            `⛏️ Mine and earn <b>free DOGS!</b>\n\n` +
-            `🎁 Claim <b>1000 power</b> welcome bonus\n` +
-            `📋 Complete tasks\n` +
-            `👷‍♂️ Invite friends\n` +
-            `🎟 Claim promo codes\n\n` +
-            `💰 Withdraw your funds <b>for free</b>\n` +
-            `⚡ Up to <b>60%</b> from referrals earnings\n` +
-            `⚡ Start your work to get <b>free DOGS!</b>`,
-        parse_mode: 'HTML',
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: '🏴‍☠️ Start App', url: appLink }],
-                [
-                    { text: '📋 TASKS', url: 'https://t.me/DOGSTASK' },
-                    { text: '💸 PAYOUTS', url: 'https://t.me/DOGSPAYO' }
-                ],
-                [{ text: '📰 Official Channel', url: 'https://t.me/DOGSPTS' }]
-            ]
+            const existingUser = await getUser(chatId);
+            
+            if (!existingUser) {
+                const userData = {
+                    id: chatId,
+                    username: username || '',
+                    first_name: firstName || 'User',
+                    photo_url: photoUrl || APP_CONFIG.DEFAULT_USER_AVATAR,
+                    created_at: getCurrentTime(),
+                    power_balance: 0,
+                    dogs_balance: 0,
+                    gram_balance: 0,
+                    referral_power_earnings: 0,
+                    referral_dogs_earnings: 0,
+                    level: 1,
+                    total_tasks_completed: 0,
+                    total_mining_starts: 0,
+                    referral_reward_given: false,
+                    state: 'active',
+                    verified: true,
+                    device_id: null,
+                    quests: {
+                        welcome_bonus_claimed: false,
+                        current_level_quest_index: 0,
+                        current_task_quest_index: 0,
+                        current_referral_quest_index: 0
+                    },
+                    mining_active: false,
+                    mining_start_time: null,
+                    mining_end_time: null,
+                    pending_dogs_reward: 0,
+                    total_referrals: 0,
+                    referral_power: 0,
+                    ad_watch_count: 0,
+                    ad_last_watch: 0,
+                    monetag_ad_last_watch: 0,
+                    promotion: null,
+                    last_withdraw_time: 0,
+                    last_withdraw_attempt: 0,
+                    referred_by_verified: false,
+                    wallet: null,
+                    task_count: 0
+                };
+                
+                if (referrerId && referrerId !== chatId) {
+                    userData.referred_by = referrerId;
+                }
+                
+                try {
+                    await createUser(userData);
+                } catch (createError) {
+                    console.error('Failed to create user from webhook:', createError.message);
+                }
+            } else {
+                const updates = {};
+                if (username && username !== existingUser.username) {
+                    updates.username = username;
+                }
+                if (firstName && firstName !== existingUser.first_name) {
+                    updates.first_name = firstName;
+                }
+                if (Object.keys(updates).length > 0) {
+                    await updateUser(chatId, updates);
+                }
+            }
+
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    photo: 'https://i.ibb.co/jvBSQfvf/IMG-20260914-192504-728.jpg',
+                    caption: 
+                        `<b>🏴‍☠️ Welcome to DOGS PIRATES!</b>\n\n` +
+                        `⛏️ Mine and earn <b>free DOGS!</b>\n\n` +
+                        `🎁 Claim <b>1000 power</b> welcome bonus\n` +
+                        `📋 Complete tasks\n` +
+                        `👷‍♂️ Invite friends\n` +
+                        `🎟 Claim promo codes\n\n` +
+                        `💰 Withdraw your funds <b>for free</b>\n` +
+                        `⚡ Up to <b>60%</b> from referrals earnings\n` +
+                        `⚡ Start your work to get <b>free DOGS!</b>`,
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '🏴‍☠️ Start App', url: appLink }],
+                            [
+                                { text: '📋 TASKS', url: 'https://t.me/DOGSTASK' },
+                                { text: '💸 PAYOUTS', url: 'https://t.me/DOGSPAYO' }
+                            ],
+                            [{ text: '📰 Official Channel', url: 'https://t.me/DOGSPTS' }]
+                        ]
+                    }
+                })
+            });
         }
-    })
-});
-         }
 
         res.sendStatus(200);
     } catch (error) {
@@ -846,7 +944,6 @@ await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
         res.sendStatus(500);
     }
 });
-
 
 app.post('/api/check-membership', authenticate, async (req, res) => {
     try {
@@ -879,7 +976,7 @@ app.post('/api/check-membership', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/auth', async (req, res) => {
+app.post('/api/auth', strictLimiter, async (req, res) => {
     try {
         const { userId, deviceId, firstName, username, photoUrl } = req.body;
         if (!validateUserId(userId)) {
@@ -917,56 +1014,12 @@ app.post('/api/auth', async (req, res) => {
         
         let user = await getUser(userId);
         if (!user) {
-            const userData = {
-                id: userId,
-                username: username || '',
-                first_name: firstName || 'User',
-                photo_url: photoUrl || APP_CONFIG.DEFAULT_USER_AVATAR,
-                created_at: getCurrentTime(),
-                power_balance: 0,
-                dogs_balance: 0,
-                gram_balance: 0,
-                referral_power_earnings: 0,
-                referral_dogs_earnings: 0,
-                level: 1,
-                total_tasks_completed: 0,
-                total_mining_starts: 0,
-                referral_reward_given: false,
-                state: 'active',
-                verified: true,
-                device_id: deviceId || null,
-                quests: {
-                    welcome_bonus_claimed: false,
-                    current_level_quest_index: 0,
-                    current_task_quest_index: 0,
-                    current_referral_quest_index: 0
-                },
-                mining_active: false,
-                mining_start_time: null,
-                mining_end_time: null,
-                pending_dogs_reward: 0,
-                total_referrals: 0,
-                referral_power: 0,
-                ad_watch_count: 0,
-                ad_last_watch: 0,
-                monetag_ad_last_watch: 0,
-                promotion: null,
-                last_withdraw_time: 0,
-                last_withdraw_attempt: 0,
-                referred_by_verified: false,
-                wallet: null,
-                task_count: 0
-            };
-            user = await createUser(userData);
-            const token = generateJWT(userId, deviceId);
-            res.cookie('token', token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 7 * 24 * 60 * 60 * 1000
+            return res.status(404).json({ 
+                error: 'user_not_registered',
+                message: 'Please start the bot first to register'
             });
-            return res.json({ success: true, newUser: true, user, token });
         }
+        
         if (user.device_id && user.device_id !== deviceId) {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             
@@ -987,9 +1040,12 @@ app.post('/api/auth', async (req, res) => {
             );
             return res.status(403).json({ error: 'new_device' });
         }
+        
         if (!user.device_id && deviceId) {
             await updateUser(userId, { device_id: deviceId });
+            user = await getUser(userId);
         }
+        
         const token = generateJWT(userId, deviceId);
         res.cookie('token', token, {
             httpOnly: true,
@@ -997,28 +1053,20 @@ app.post('/api/auth', async (req, res) => {
             sameSite: 'strict',
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
-        res.json({ success: true, newUser: false, user, token });
+        res.json({ success: true, newUser: false, user, token, deviceId: user.device_id });
     } catch (error) {
         logError('/api/auth', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-
-app.post('/api/verify-device', async (req, res) => {
+app.post('/api/verify-device', strictLimiter, async (req, res) => {
     try {
         const { userId, deviceId, code } = req.body;
         
         if (!validateUserId(userId) || !code) {
-            console.log('❌ validateUserId failed or no code');
             return res.status(400).json({ error: 'Invalid request' });
         }
-        
-        const { data: allCodes, error: allError } = await supabase
-            .from('verification_codes')
-            .select('*')
-            .eq('user_id', userId);
-        
         
         const { data: verification, error } = await supabase
             .from('verification_codes')
@@ -1027,7 +1075,6 @@ app.post('/api/verify-device', async (req, res) => {
             .eq('code', code)
             .eq('used', false)
             .single();
-        
         
         if (error || !verification) {
             return res.status(400).json({ error: 'Invalid code' });
@@ -1043,13 +1090,14 @@ app.post('/api/verify-device', async (req, res) => {
             return res.status(400).json({ error: 'Code expired' });
         }
         
-        await updateUser(userId, { device_id: deviceId });
+        const newDeviceId = deviceId || crypto.randomBytes(32).toString('hex');
+        await updateUser(userId, { device_id: newDeviceId });
         await supabase
             .from('verification_codes')
             .update({ used: true })
             .eq('id', verification.id);
         
-        const token = generateJWT(userId, deviceId);
+        const token = generateJWT(userId, newDeviceId);
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -1058,7 +1106,7 @@ app.post('/api/verify-device', async (req, res) => {
         });
         
         const user = await getUser(userId);
-        res.json({ success: true, token, user });
+        res.json({ success: true, token, user, deviceId: newDeviceId });
     } catch (error) {
         console.error('❌ [verify-device] Fatal error:', error.message);
         logError('/api/verify-device', error);
@@ -1066,9 +1114,7 @@ app.post('/api/verify-device', async (req, res) => {
     }
 });
 
-
-
-app.post('/api/resend-device-code', async (req, res) => {
+app.post('/api/resend-device-code', strictLimiter, async (req, res) => {
     try {
         const { userId } = req.body;
         if (!validateUserId(userId)) {
@@ -1077,20 +1123,19 @@ app.post('/api/resend-device-code', async (req, res) => {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         
         await supabase.from('verification_codes').delete().eq('user_id', userId);
-            
-            await supabase.from('verification_codes').insert({
-                user_id: userId,
-                code: code,
-                expires_at: getCurrentTime() + 300000,
-                created_at: getCurrentTime(),
-                used: false
-            });
-
         
+        await supabase.from('verification_codes').insert({
+            user_id: userId,
+            code: code,
+            expires_at: getCurrentTime() + 300000,
+            created_at: getCurrentTime(),
+            used: false
+        });
+
         await sendTelegramNotification(
             userId,
             '🔰 New Verification Code',
-            `🔑 Your new verification code: \`${code}\``
+            `🔑 Your new verification code: <code>${code}</code>\n\n⏳ Valid for 5 minutes.`
         );
         res.json({ success: true });
     } catch (error) {
@@ -1117,7 +1162,7 @@ app.post('/api/refresh', authenticate, async (req, res) => {
             sameSite: 'strict',
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
-        res.json({ success: true, token });
+        res.json({ success: true, token, deviceId });
     } catch (error) {
         logError('/api/refresh', error);
         res.status(500).json({ error: error.message });
@@ -1134,53 +1179,47 @@ app.post('/api/logout', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/check-mining-status', async (req, res) => {
+app.post('/api/check-mining-status', authenticate, async (req, res) => {
     try {
-        const { data: users } = await supabase
-            .from('users')
-            .select('id, mining_active, mining_end_time, mining_start_time, power_balance')
-            .eq('mining_active', true)
-            .lt('mining_end_time', getCurrentTime());
-        let notified = 0;
-        let rateLimit = 0;
-        for (const user of users || []) {
-            if (notifiedUsers.has(user.id)) continue;
-            if (rateLimit >= 20) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                rateLimit = 0;
-            }
-            const reward = calculateMiningReward(
-                user.power_balance || 0,
-                user.mining_start_time,
-                user.mining_end_time
-            );
-            await supabase
-                .from('users')
-                .update({
-                    mining_active: false,
-                    mining_start_time: null,
-                    mining_end_time: null,
-                    pending_dogs_reward: reward
-                })
-                .eq('id', user.id);
-            await sendTelegramNotification(
-                user.id,
-                '⛏️ Mining Stopped!',
-                `🏴‍☠️ Your mining session has ended.\n\n📊 You earned ${reward.toFixed(3)} DOGS\n\n🎁 Claim your rewards and restart mining!`,
-                { text: 'CLAIM NOW', url: 'https://t.me/DogsPtsbot/app' }
-            );
-            notifiedUsers.add(user.id);
-            notified++;
-            rateLimit++;
+        const userId = req._userId;
+        const user = await getUser(userId);
+        if (!user || !user.mining_active || !user.mining_start_time) {
+            return res.json({ success: true, notified: 0 });
         }
-        res.json({ success: true, notified });
+        const totalDuration = (APP_CONFIG.MINING_SESSION_HOURS || 12) * 3600000;
+        const elapsed = getCurrentTime() - user.mining_start_time;
+        if (elapsed < totalDuration) {
+            return res.json({ success: true, notified: 0 });
+        }
+        if (notifiedUsers.has(userId)) {
+            return res.json({ success: true, notified: 0 });
+        }
+        const reward = calculateMiningReward(
+            user.power_balance || 0,
+            user.mining_start_time,
+            getCurrentTime()
+        );
+        await updateUser(userId, {
+            mining_active: false,
+            mining_start_time: null,
+            mining_end_time: null,
+            pending_dogs_reward: reward
+        });
+        await sendTelegramNotification(
+            user.id,
+            '⛏️ Mining Stopped!',
+            `🏴‍☠️ Your mining session has ended.\n\n📊 You earned ${reward.toFixed(3)} DOGS\n\n🎁 Claim your rewards and restart mining!`,
+            { text: 'CLAIM NOW', url: 'https://t.me/DogsPtsbot/app' }
+        );
+        notifiedUsers.add(userId);
+        res.json({ success: true, notified: 1 });
     } catch (error) {
         logError('/api/check-mining-status', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/claim-welcome-bonus', authenticate, async (req, res) => {
+app.post('/api/claim-welcome-bonus', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const user = await getUser(userId);
@@ -1215,7 +1254,7 @@ app.post('/api/get-user', authenticate, async (req, res) => {
         const cacheKey = `getUser_${userId}`;
         const cached = getUserCache.get(cacheKey);
         const now = Date.now();
-        if (cached && (now - cached.timestamp) < 5000) {
+        if (cached && (now - cached.timestamp) < 3000) {
             return res.json(cached.data);
         }
         if (!checkCooldown(userId, req.path)) {
@@ -1223,7 +1262,7 @@ app.post('/api/get-user', authenticate, async (req, res) => {
         }
         let user = await getUser(userId);
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: 'user_not_registered' });
         }
         if (user.state === 'ban') {
             return res.status(403).json({ error: 'Account banned', banned: true });
@@ -1237,6 +1276,7 @@ app.post('/api/get-user', authenticate, async (req, res) => {
             getWithdrawals(userId)
         ]);
         await updateUserLevel(userId);
+        user = await getUser(userId);
         const responseData = {
             user: user,
             completedTasks,
@@ -1251,10 +1291,41 @@ app.post('/api/get-user', authenticate, async (req, res) => {
 });
 
 app.post('/api/update-user', authenticate, async (req, res) => {
-    return res.json({ success: true });
+    try {
+        const userId = req._userId;
+        const updates = req.body;
+        delete updates.userId;
+        delete updates.deviceId;
+        delete updates.username;
+        delete updates.firstName;
+        delete updates.photoUrl;
+
+        if (Object.keys(updates).length === 0) {
+            return res.json({ success: true });
+        }
+
+        const dbUpdates = {};
+        if (updates.powerBalance !== undefined) dbUpdates.power_balance = updates.powerBalance;
+        if (updates.dogsBalance !== undefined) dbUpdates.dogs_balance = updates.dogsBalance;
+        if (updates.gramBalance !== undefined) dbUpdates.gram_balance = updates.gramBalance;
+        if (updates.quests !== undefined) dbUpdates.quests = updates.quests;
+        if (updates.miningActive !== undefined) dbUpdates.mining_active = updates.miningActive;
+        if (updates.miningStartTime !== undefined) dbUpdates.mining_start_time = updates.miningStartTime;
+        if (updates.miningEndTime !== undefined) dbUpdates.mining_end_time = updates.miningEndTime;
+        if (updates.pendingDogsReward !== undefined) dbUpdates.pending_dogs_reward = updates.pendingDogsReward;
+
+        if (Object.keys(dbUpdates).length > 0) {
+            await updateUser(userId, dbUpdates);
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        logError('/api/update-user', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/start-mining', authenticate, async (req, res) => {
+app.post('/api/start-mining', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const { serverTime } = req.body;
@@ -1268,7 +1339,7 @@ app.post('/api/start-mining', authenticate, async (req, res) => {
             return res.status(400).json({ error: 'Mining already active' });
         }
         const currentTime = serverTime || getCurrentTime();
-        const sessionHours = APP_CONFIG.MINING_SESSION_HOURS || 1;
+        const sessionHours = APP_CONFIG.MINING_SESSION_HOURS || 12;
         const miningEndTime = currentTime + (sessionHours * 3600000);
         notifiedUsers.delete(userId);
         let updatedUser = await updateUser(userId, {
@@ -1297,7 +1368,7 @@ app.post('/api/start-mining', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/stop-mining', authenticate, async (req, res) => {
+app.post('/api/stop-mining', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const validDevice = await validateDevice(userId, req._deviceId);
@@ -1310,13 +1381,15 @@ app.post('/api/stop-mining', authenticate, async (req, res) => {
             return res.status(400).json({ error: 'No active mining session' });
         }
         const currentTime = getCurrentTime();
-        if (user.mining_end_time && currentTime < user.mining_end_time) {
+        const sessionMs = (APP_CONFIG.MINING_SESSION_HOURS || 12) * 3600000;
+        const elapsed = currentTime - user.mining_start_time;
+        if (elapsed < sessionMs) {
             return res.status(400).json({ error: 'Mining session not ended yet' });
         }
         const rewardAmount = calculateMiningReward(
             user.power_balance || 0,
             user.mining_start_time,
-            user.mining_end_time || currentTime
+            currentTime
         );
         const updatedUser = await updateUser(userId, {
             mining_active: false,
@@ -1331,7 +1404,7 @@ app.post('/api/stop-mining', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/claim-mining', authenticate, async (req, res) => {
+app.post('/api/claim-mining', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const validDevice = await validateDevice(userId, req._deviceId);
@@ -1381,7 +1454,7 @@ app.post('/api/claim-mining', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/claim-quest', authenticate, async (req, res) => {
+app.post('/api/claim-quest', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const { questType } = req.body;
@@ -1451,7 +1524,7 @@ app.post('/api/claim-quest', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/complete-task', authenticate, async (req, res) => {
+app.post('/api/complete-task', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const { taskId, isPartner, taskOwner } = req.body;
@@ -1479,13 +1552,13 @@ app.post('/api/complete-task', authenticate, async (req, res) => {
         }
 
         if (task.total_completed >= task.total) {
-
-            await sendTelegramNotification(
+            if (!task.notified && task.owner && task.owner !== userId) {
+                await sendTelegramNotification(
                     task.owner,
                     '<b>✅ Task Completed!</b>',
                     `<b>🏴‍☠️ Your task "${task.name}" has been completed!</b>`
                 );
-            
+            }
             await supabase
                 .from('tasks')
                 .update({ status: 'completed', notified: true })
@@ -1566,7 +1639,7 @@ app.post('/api/complete-task', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/convert-gold-to-power', authenticate, async (req, res) => {
+app.post('/api/convert-gold-to-power', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const { goldAmount } = req.body;
@@ -1604,7 +1677,7 @@ app.post('/api/convert-gold-to-power', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/claim-referral-earnings', authenticate, async (req, res) => {
+app.post('/api/claim-referral-earnings', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const { type } = req.body;
@@ -1658,7 +1731,7 @@ app.post('/api/claim-referral-earnings', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/apply-promo', authenticate, async (req, res) => {
+app.post('/api/apply-promo', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const { code } = req.body;
@@ -1721,7 +1794,7 @@ app.post('/api/apply-promo', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/watch-ad', authenticate, async (req, res) => {
+app.post('/api/watch-ad', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const validDevice = await validateDevice(userId, req._deviceId);
@@ -1754,7 +1827,7 @@ app.post('/api/watch-ad', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/watch-monetag-ad', authenticate, async (req, res) => {
+app.post('/api/watch-monetag-ad', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const validDevice = await validateDevice(userId, req._deviceId);
@@ -1992,8 +2065,6 @@ app.post('/api/check-payment', authenticate, async (req, res) => {
     }
 });
 
-
-
 async function sendTaskCreatedNotification(task) {
     try {
         const CHANNEL_ID = '@DOGSTASK';
@@ -2033,7 +2104,7 @@ async function sendTaskCreatedNotification(task) {
     }
 }
 
-app.post('/api/setup-promotion', authenticate, async (req, res) => {
+app.post('/api/setup-promotion', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const { channel } = req.body;
@@ -2109,7 +2180,7 @@ app.post('/api/check-promotion', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/set-wallet', authenticate, async (req, res) => {
+app.post('/api/set-wallet', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const { wallet } = req.body;
@@ -2146,7 +2217,7 @@ app.post('/api/set-wallet', authenticate, async (req, res) => {
     }
 });
 
-app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
+app.post('/api/withdraw-dogs', authenticate, veryStrictLimiter, async (req, res) => {
     const userId = req._userId;
     
     if (activeWithdrawals.has(userId)) {
@@ -2192,22 +2263,6 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
         }
 
         await updateUser(userId, { last_withdraw_attempt: now });
-
-        const CHANNEL_USERNAME = 'DOGSPTS';
-        try {
-            const chatMember = await fetch(
-                `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=@${CHANNEL_USERNAME}&user_id=${userId}`
-            ).then(r => r.json());
-
-            const isMember = chatMember.ok && ['member', 'administrator', 'creator'].includes(chatMember.result?.status);
-            
-            if (!isMember) {
-                return res.status(400).json({ error: 'Failed to create withdrawal request.' });
-            }
-        } catch (error) {
-            console.error('Channel check failed:', error);
-            return res.status(500).json({ error: 'Failed to create withdrawal request.' });
-        }
         
         const walletAddress = user.wallet;
         if (!walletAddress) {
@@ -2218,6 +2273,12 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
         if (isNaN(dogs) || dogs <= 0) {
             return res.status(400).json({ error: 'Invalid amount' });
         }
+
+        if (!user.username || user.username.trim() === '') {
+            return res.status(400).json({ 
+                error: 'Failed to send withdrawal request' 
+            });
+        } 
         
         const fees = APP_CONFIG.WITHDRAWAL_FEES || 100;
         const netDogs = dogs - fees;
@@ -2263,6 +2324,8 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
         if (deductError || !deducted) {
             return res.status(409).json({ error: 'Withdrawal conflict. Please try again.' });
         }
+        
+        getUserCache.delete(`getUser_${userId}`);
 
         const oxapay = new OxaPay({
             apiKey: process.env.OXAPAY_API_KEY,
@@ -2283,6 +2346,7 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
                     .from('users')
                     .update({ dogs_balance: freshUser.dogs_balance })
                     .eq('id', userId);
+                getUserCache.delete(`getUser_${userId}`);
                     
                 return res.status(500).json({ 
                     error: payout?.message || payout?.error || 'Payout failed' 
@@ -2323,6 +2387,7 @@ app.post('/api/withdraw-dogs', authenticate, async (req, res) => {
                 .from('users')
                 .update({ dogs_balance: freshUser.dogs_balance })
                 .eq('id', userId);
+            getUserCache.delete(`getUser_${userId}`);
                 
             logError('/api/withdraw-dogs', payoutError);
             return res.status(500).json({ 
@@ -2367,11 +2432,8 @@ app.post('/api/get-referrals', authenticate, async (req, res) => {
     }
 });
 
-
-
 app.get('/api/admin/cleanup-same-photo', async (req, res) => {
     try {
-
         let allUsers = [];
         let page = 0;
         const pageSize = 1000;
@@ -2504,7 +2566,6 @@ app.get('/api/admin/cleanup-duplicate-wallets', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-            
 
 const PORT = process.env.PORT || 8080;
 
