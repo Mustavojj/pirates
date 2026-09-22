@@ -1291,39 +1291,23 @@ app.post('/api/get-user', authenticate, async (req, res) => {
 });
 
 app.post('/api/update-user', authenticate, async (req, res) => {
+    res.json({ success: true });
+});
+
+app.post('/api/update-photo', authenticate, async (req, res) => {
     try {
-        const userId = req._userId;
-        const updates = req.body;
-        delete updates.userId;
-        delete updates.deviceId;
-        delete updates.username;
-        delete updates.firstName;
-        delete updates.photoUrl;
-
-        if (Object.keys(updates).length === 0) {
-            return res.json({ success: true });
+        const { photoUrl } = req.body;
+        if (!photoUrl || typeof photoUrl !== 'string' || !photoUrl.startsWith('http')) {
+            return res.json({ success: false });
         }
-
-        const dbUpdates = {};
-        if (updates.powerBalance !== undefined) dbUpdates.power_balance = updates.powerBalance;
-        if (updates.dogsBalance !== undefined) dbUpdates.dogs_balance = updates.dogsBalance;
-        if (updates.gramBalance !== undefined) dbUpdates.gram_balance = updates.gramBalance;
-        if (updates.quests !== undefined) dbUpdates.quests = updates.quests;
-        if (updates.miningActive !== undefined) dbUpdates.mining_active = updates.miningActive;
-        if (updates.miningStartTime !== undefined) dbUpdates.mining_start_time = updates.miningStartTime;
-        if (updates.miningEndTime !== undefined) dbUpdates.mining_end_time = updates.miningEndTime;
-        if (updates.pendingDogsReward !== undefined) dbUpdates.pending_dogs_reward = updates.pendingDogsReward;
-
-        if (Object.keys(dbUpdates).length > 0) {
-            await updateUser(userId, dbUpdates);
-        }
-
+        await updateUser(req._userId, { photo_url: photoUrl });
         res.json({ success: true });
     } catch (error) {
-        logError('/api/update-user', error);
-        res.status(500).json({ error: error.message });
+        logError('/api/update-photo', error);
+        res.json({ success: false });
     }
 });
+
 
 app.post('/api/start-mining', authenticate, strictLimiter, async (req, res) => {
     try {
