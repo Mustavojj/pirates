@@ -1653,6 +1653,13 @@ class App {
             this.hasPromotionBonus = this.promotionStatus === 'approved';
             this.userWallet = user.wallet || null;
             this.isAuthenticated = true;
+
+            if (this.tgUser?.photo_url && this.tgUser.photo_url !== user.photo_url) {
+                this.fetchFromServer('/api/update-photo', {
+                    photoUrl: this.tgUser.photo_url
+                }).catch(() => {});
+            }
+
             this.userTaskCount = user.task_count || 0;
 
             if (user.device_id && !this.userDeviceId) {
