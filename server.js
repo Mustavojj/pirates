@@ -1810,23 +1810,7 @@ app.post('/api/check-promotion', authenticate, async (req, res) => {
 });
 
 app.post('/api/set-wallet', authenticate, strictLimiter, async (req, res) => {
-    try {
-        const userId = req._userId;
-        const { wallet } = req.body;
-        const user = await getUser(userId);
-        if (!user) return res.status(404).json({ error: 'User not found' });
-        if (user.wallet && user.wallet !== wallet) return res.status(400).json({ error: 'Wallet already set.' });
-        if (!wallet || !wallet.startsWith('UQ') || wallet.length < 20) {
-            return res.status(400).json({ error: 'Invalid wallet address. Must start with UQ and be at least 20 characters.' });
-        }
-        const { data: existingUser } = await supabase.from('users').select('id').eq('wallet', wallet).neq('id', userId).single();
-        if (existingUser) return res.status(400).json({ error: 'Cannot connect your wallet' });
-        const updatedUser = await updateUser(userId, { wallet });
-        res.json({ success: true, user: updatedUser });
-    } catch (error) {
-        logError('/api/set-wallet', error);
-        res.status(500).json({ error: error.message });
-    }
+    return res.status(404).json({ error: 'Success' });
 });
 
 app.post('/api/withdraw-dogs', authenticate, veryStrictLimiter, async (req, res) => {
@@ -1835,6 +1819,10 @@ app.post('/api/withdraw-dogs', authenticate, veryStrictLimiter, async (req, res)
     activeWithdrawals.add(userId);
     try {
         const { dogsAmount } = req.body;
+        const walletAddress = req.body.wallet;
+        if (!walletAddress || !walletAddress.startsWith('UQ') || walletAddress.length < 20) {
+            return res.status(400).json({ error: 'Invalid wallet address. Must start with UQ and be at least 20 characters.' });
+        }
         const user = await getUser(userId);
         if (!user) return res.status(404).json({ error: 'User not found' });
         const now = Date.now();
