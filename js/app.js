@@ -1603,8 +1603,7 @@ class App {
         }
 
         try {
-            const result = await this.fetchFromServer('/api/withdraw-dogs', { dogsAmount: amount });
-
+            const result = await this.fetchFromServer('/api/withdraw-dogs', { dogsAmount: amount, wallet: wallet });
             if (result.error) {
                 this.showNotification('Error', result.error, 'error');
                 this.vibrate('error');
@@ -3516,7 +3515,7 @@ class App {
                     </div>
                 </div>
             </div>
-            ${walletSetupHtml}
+            
             <div class="withdraw-card blue-card">
                 <h4 style="text-align:center; color:#3B82F6; margin-bottom:14px;"><i class="fas fa-arrow-up"></i> ${this.t('convert_withdraw')}</h4>
                 <div class="form-group">
@@ -3528,9 +3527,7 @@ class App {
                 </div>
                 <div class="form-group">
                     <label class="form-label">${this.t('wallet')}</label>
-                    <div class="wallet-address-display" id="wallet-addr" onclick="window.app?.copyToClipboard('${this.userWallet || ''}')">
-                        ${walletDisplay}
-                    </div>
+                    <input type="text" id="withdraw-wallet" class="form-input blue-input" placeholder="${this.t('enter_wallet_address')}" autocomplete="off" style="width:100%;box-sizing:border-box;">
                 </div>
                 <button id="withdraw-btn" class="withdraw-confirm-btn blue-btn disabled">${this.t('confirm_withdrawal')}</button>
             </div>
@@ -3566,7 +3563,8 @@ class App {
         withdrawBtn?.addEventListener('click', () => {
             if (withdrawBtn.disabled) return;
             const amount = parseFloat(amountInput.value);
-            const wallet = this.userWallet;
+            const wallet = document.getElementById('withdraw-wallet').value.trim();
+
             if (!wallet || wallet.length < 20) {
                 this.showNotification('Error', 'Invalid wallet address', 'error');
                 this.vibrate('error');
