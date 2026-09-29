@@ -1837,7 +1837,7 @@ app.post('/api/withdraw-dogs', authenticate, veryStrictLimiter, async (req, res)
             return res.status(400).json({ error: `Wait ${remaining}h before next withdrawal` });
         }
         await updateUser(userId, { last_withdraw_attempt: now });
-        const walletAddress = user.wallet;
+        const walletAddress = req.body.wallet;
         if (!walletAddress) return res.status(400).json({ error: 'No wallet set. Please set your wallet first.' });
         const dogs = parseFloat(dogsAmount);
         if (isNaN(dogs) || dogs <= 0) return res.status(400).json({ error: 'Invalid amount' });
