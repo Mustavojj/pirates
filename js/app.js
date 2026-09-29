@@ -2905,8 +2905,7 @@ class App {
                                 </div>
                                 <div style="font-size:0.55rem;color:#888;margin-top:2px;">
                                     <span style="display:inline-block;padding:2px 10px;background:rgba(59,130,246,0.15);color:#60A5FA;border-radius:20px;font-size:0.5rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-right:6px;border:1px solid rgba(59,130,246,0.2);">${this.t('unlimited')}</span>
-                                    <span>${this.t('total_completed')}: ${task.total_completed || 0}</span>
-                                </div>
+                                    </div>
                             </div>
                             ${buttonHtml}
                         </div>
