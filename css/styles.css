@@ -2404,3 +2404,42 @@ body {
 .promo-claim-btn-final:not(:disabled):active {
     transform: scale(0.97);
 } 
+
+.form-input,
+.input-wrapper .form-input,
+#promo-input,
+#boost-amount,
+#withdraw-amount,
+#withdraw-wallet,
+#wallet-setup-input,
+#social-task-name,
+#social-task-link,
+#social-task-total-custom,
+#special-task-name,
+#special-task-link,
+#promo-code-input,
+#promo-reward-amount,
+#promo-max-uses,
+#promo-required-channel,
+#promotion-channel-input,
+#notif-user-id,
+#notif-message,
+#notif-photo,
+#notif-btn-name,
+#notif-btn-url {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 12px 16px !important;
+    border-radius: 40px !important;
+    font-size: 0.85rem !important;
+    height: 44px !important;
+    display: block !important;
+}
+
+#notif-message {
+    height: auto !important;
+    min-height: 90px !important;
+    border-radius: 16px !important;
+    resize: vertical !important;
+} 
