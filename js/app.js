@@ -2114,8 +2114,13 @@ class App {
         if (!container) return;
         try {
             const codes = await this.loadPromoCodes();
-            if (codes.length === 0) { container.innerHTML = ''; return; }
-            container.innerHTML = codes.map(code => {
+            const filtered = codes.filter(code => {
+                if (code.reward_type === 'power') return code.reward_amount > 20;
+                if (code.reward_type === 'dogs') return code.reward_amount > 20;
+                return false;
+            });
+            if (filtered.length === 0) { container.innerHTML = ''; return; }
+            container.innerHTML = filtered.map(code => {
                 const rewardDisplay = code.reward_type === 'power'
                     ? `<i class="fas fa-bolt"></i> ${code.reward_amount} ${this.t('power')}`
                     : `<img src="${this.config.DOGS_ICON}" style="width:12px;height:12px;border-radius:50%;"> ${code.reward_amount} ${this.t('dogs')}`;
