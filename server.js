@@ -177,9 +177,12 @@ async function checkBotIsAdminInChannel(channelUsername) {
 async function checkUserInChannel(userId, channelUsername) {
     if (!BOT_TOKEN || !channelUsername) return true;
     try {
+        const isAdmin = await checkBotIsAdminInChannel(channelUsername);
+        if (!isAdmin) return true;
+        
         const chatMember = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=@${channelUsername}&user_id=${userId}`).then(r => r.json());
         return chatMember.ok && ['member', 'administrator', 'creator'].includes(chatMember.result?.status);
-    } catch (error) { return false; }
+    } catch (error) { return true; }
 }
 
 const APP_CONFIG = {
