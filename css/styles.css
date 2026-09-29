@@ -2235,3 +2235,172 @@ body {
 .community-btn:active {
     transform: scale(0.95);
 }
+
+.my-task-item {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(59, 130, 246, 0.1);
+    border-radius: var(--border-radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.my-task-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--blue-light);
+    margin: 0;
+    word-break: break-word;
+}
+
+.my-task-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.my-task-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--blue);
+    background: rgba(59, 130, 246, 0.1);
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(59, 130, 246, 0.08);
+}
+
+.my-task-stat i {
+    font-size: 0.7rem;
+}
+
+.my-task-delete {
+    width: 100%;
+    padding: 9px 14px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 10px;
+    color: var(--error);
+    font-weight: 600;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.my-task-delete:hover,
+.my-task-delete:active {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(0.98);
+}
+
+.my-task-delete i {
+    font-size: 0.75rem;
+}
+
+.promo-code-card {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+}
+
+.promo-code-card:active {
+    transform: scale(0.98);
+}
+
+.promo-code-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.promo-code-value {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--blue-light);
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+}
+
+.promo-code-rewards {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.65rem;
+    color: #aaa;
+}
+
+.promo-code-btn {
+    padding: 6px 14px;
+    background: var(--blue-gradient);
+    border: none;
+    border-radius: 40px;
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 0.65rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.promo-code-btn:active {
+    transform: scale(0.95);
+}
+
+.promo-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    color: var(--blue);
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.promo-action-btn:active {
+    transform: scale(0.9);
+    background: var(--blue-gradient);
+    color: #FFFFFF;
+}
+
+.promo-type-option.active,
+.promo-notify-option.active,
+.special-verif-option.active {
+    background: var(--blue-gradient) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 0 20px var(--blue-glow);
+    transform: scale(0.95);
+}
+
+.promo-type-option img,
+.promo-notify-option img {
+    vertical-align: middle;
+}
+
+.promo-requirement-item {
+    transition: all 0.3s;
+}
+
+.promo-claim-btn-final:not(:disabled):active {
+    transform: scale(0.97);
+} 
