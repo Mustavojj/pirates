@@ -18,29 +18,8 @@
     <div style="color:#FFFFFF;font-weight:700;font-size:1.1rem;letter-spacing:2px;">DOGS PIRATES</div>
 </div>
 
-<div id="device-verification-modal" class="modal" style="display:none;">
-    <div class="modal-content blue-modal" style="max-width:340px;width:90%;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);padding:0;">
-        <div class="modal-header blue-header" style="padding:16px 20px;border-bottom:1px solid rgba(59,130,246,0.1);">
-            <h3 style="color:#60A5FA;font-size:1.1rem;display:flex;align-items:center;gap:10px;margin:0;"><i class="fas fa-shield-alt" style="color:#3B82F6;"></i> New Device Detected</h3>
-            <button class="modal-close" onclick="document.getElementById('device-verification-modal').style.display='none'">&times;</button>
-        </div>
-        <div class="modal-body" style="padding:20px;">
-            <p style="text-align:center;color:#888;font-size:0.85rem;margin-bottom:16px;">
-                A verification code was sent to your Telegram.<br>
-                Please enter it below to continue.
-            </p>
-            <div class="form-group">
-                <input type="text" id="device-verify-input" class="form-input blue-input" placeholder="— — — — — —" maxlength="6" autocomplete="off" style="text-align:center;font-size:1.6rem;letter-spacing:12px;padding:14px 16px;width:100%;background:rgba(0,0,0,0.4);border:1px solid rgba(59,130,246,0.2);border-radius:60px;color:white;font-weight:600;">
-            </div>
-            <button id="device-verify-btn" class="blue-btn" style="width:100%;padding:14px;border:none;border-radius:60px;font-weight:700;font-size:1rem;cursor:pointer;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;">Verify Device</button>
-            <div id="device-verify-error" style="color:#EF4444;text-align:center;margin-top:10px;font-size:0.85rem;display:none;"></div>
-            <button id="device-resend-btn" style="background:transparent;color:#666;margin-top:8px;font-size:0.7rem;padding:8px;border:none;cursor:pointer;width:100%;text-align:center;">Resend Code</button>
-        </div>
-    </div>
-</div>
-
 <div id="ban-modal" class="modal" style="display:none;">
-    <div class="modal-content glass-modal modern-modal blue-modal" style="max-width:320px;width:90%;margin:0 auto;position:relative;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);box-shadow:0 8px 40px rgba(0,0,0,0.8);text-align:center;padding:30px 24px;">
+    <div class="modal-content blue-modal" style="max-width:320px;width:90%;margin:0 auto;position:relative;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);box-shadow:0 8px 40px rgba(0,0,0,0.8);text-align:center;padding:30px 24px;">
         <div style="font-size:60px;margin-bottom:16px;">🚫</div>
         <h3 style="color:#EF4444;font-size:1.3rem;font-weight:700;margin-bottom:8px;">Account Banned</h3>
         <p style="color:#888;font-size:0.95rem;margin-bottom:20px;line-height:1.5;">
@@ -146,10 +125,121 @@
             <div style="background:rgba(59,130,246,0.08);border-radius:12px;padding:12px;margin:12px 0;border:1px solid rgba(59,130,246,0.08);">
                 <div style="display:flex;justify-content:space-between;font-size:0.8rem;">
                     <span style="color:#888;">Total Cost:</span>
-                    <span id="total-cost-display" style="color:#60A5FA;font-weight:700;">0.000 DOGS</span>
+                    <span id="total-cost-display" style="color:#60A5FA;font-weight:700;">0.000 GRAM</span>
                 </div>
             </div>
             <button id="pay-add-task-btn" class="blue-btn" style="width:100%;padding:14px;border:none;border-radius:60px;font-weight:700;font-size:0.95rem;cursor:pointer;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;">PAY & ADD TASK</button>
+        </div>
+    </div>
+</div>
+
+<div id="add-special-task-modal" class="modal" style="display:none;">
+    <div class="modal-content blue-modal" style="max-width:400px;width:92%;max-height:90vh;overflow-y:auto;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);padding:0;">
+        <div class="modal-header blue-header" style="padding:16px 20px;border-bottom:1px solid rgba(59,130,246,0.1);">
+            <h3 style="color:#60A5FA;font-size:1.1rem;display:flex;align-items:center;gap:10px;margin:0;"><i class="fas fa-star" style="color:#3B82F6;"></i> Add Special Task</h3>
+            <button class="modal-close" onclick="document.getElementById('add-special-task-modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <div class="form-group">
+                <label class="form-label">Name (5-20 chars)</label>
+                <input type="text" id="special-task-name" class="form-input blue-input" placeholder="Task name" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Link</label>
+                <input type="text" id="special-task-link" class="form-input blue-input" placeholder="https://t.me/...">
+            </div>
+            <div class="form-group" id="special-verification-group" style="display:none;">
+                <label class="form-label">Verification</label>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <button class="special-verif-option" data-value="yes" style="padding:6px 18px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">YES</button>
+                    <button class="special-verif-option" data-value="no" style="padding:6px 18px;border:none;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">NO</button>
+                    <span id="special-verification-note" style="font-size:0.6rem;color:#3B82F6;display:none;margin-left:4px;"><i class="fas fa-info-circle"></i> You must add the bot as admin to verify membership</span>
+                </div>
+            </div>
+            <div style="background:rgba(59,130,246,0.08);border-radius:12px;padding:12px;margin:12px 0;border:1px solid rgba(59,130,246,0.08);">
+                <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:8px;">
+                    <span style="color:#888;">Price:</span>
+                    <span id="special-task-price-display" style="color:#60A5FA;font-weight:700;">10 GRAM</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:0.8rem;">
+                    <span style="color:#888;">Reward:</span>
+                    <span style="color:#60A5FA;font-weight:700;">50 Power + 5 DOGS</span>
+                </div>
+            </div>
+            <div style="font-size:0.65rem;color:#888;text-align:center;margin-bottom:12px;padding:8px;background:rgba(59,130,246,0.05);border-radius:8px;">
+                <i class="fas fa-info-circle"></i> This is an unlimited task. You can complete it multiple times.
+            </div>
+            <button id="pay-add-special-task-btn" class="blue-btn" style="width:100%;padding:14px;border:none;border-radius:60px;font-weight:700;font-size:0.95rem;cursor:pointer;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;">PAY & ADD TASK</button>
+        </div>
+    </div>
+</div>
+
+<div id="add-promo-code-modal" class="modal" style="display:none;">
+    <div class="modal-content blue-modal" style="max-width:420px;width:92%;max-height:90vh;overflow-y:auto;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);padding:0;">
+        <div class="modal-header blue-header" style="padding:16px 20px;border-bottom:1px solid rgba(59,130,246,0.1);">
+            <h3 style="color:#60A5FA;font-size:1.1rem;display:flex;align-items:center;gap:10px;margin:0;"><i class="fas fa-ticket-alt" style="color:#3B82F6;"></i> Create Promo Code</h3>
+            <button class="modal-close" onclick="document.getElementById('add-promo-code-modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <div class="form-group">
+                <label class="form-label">Code (5-20 chars)</label>
+                <div style="display:flex;gap:6px;">
+                    <input type="text" id="promo-code-input" class="form-input blue-input" placeholder="PTS-XXXX" maxlength="20" style="flex:1;text-transform:uppercase;">
+                    <button id="generate-promo-code" class="blue-btn" style="padding:8px 14px;border-radius:40px;font-size:0.7rem;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;white-space:nowrap;"><i class="fas fa-dice"></i> Random</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reward Type</label>
+                <div style="display:flex;gap:6px;">
+                    <button class="promo-type-option active" data-value="power" style="flex:1;padding:8px 14px;border:none;border-radius:40px;font-size:0.75rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;"><i class="fas fa-bolt"></i> Power</button>
+                    <button class="promo-type-option" data-value="dogs" style="flex:1;padding:8px 14px;border:none;border-radius:40px;font-size:0.75rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;"><img src="https://i.ibb.co/m5JD7vwy/In-Collage.png" style="width:14px;height:14px;border-radius:50%;"> DOGS</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reward per Use</label>
+                <input type="number" id="promo-reward-amount" class="form-input blue-input" placeholder="e.g. 100" min="1" max="1000000">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Max Total Uses (50-5000)</label>
+                <input type="number" id="promo-max-uses" class="form-input blue-input" placeholder="e.g. 100" min="50" max="5000">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Required Channel (Optional)</label>
+                <input type="text" id="promo-required-channel" class="form-input blue-input" placeholder="https://t.me/channel">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notify Channel</label>
+                <div style="display:flex;gap:6px;">
+                    <button class="promo-notify-option active" data-value="yes" style="flex:1;padding:8px 14px;border:none;border-radius:40px;font-size:0.75rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">Yes</button>
+                    <button class="promo-notify-option" data-value="no" style="flex:1;padding:8px 14px;border:none;border-radius:40px;font-size:0.75rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);color:#888;transition:all 0.2s;">No</button>
+                </div>
+            </div>
+            <div style="background:rgba(59,130,246,0.08);border-radius:12px;padding:12px;margin:12px 0;border:1px solid rgba(59,130,246,0.08);">
+                <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+                    <span style="color:#888;">Total Cost:</span>
+                    <span id="promo-cost-display" style="color:#60A5FA;font-weight:700;">0.0000 GRAM</span>
+                </div>
+            </div>
+            <button id="pay-create-promo-btn" class="blue-btn" style="width:100%;padding:14px;border:none;border-radius:60px;font-weight:700;font-size:0.95rem;cursor:pointer;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;">PAY & CREATE CODE</button>
+
+            <div style="margin-top:20px;border-top:1px solid rgba(59,130,246,0.1);padding-top:16px;">
+                <h4 style="color:#60A5FA;font-size:0.9rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="fas fa-list"></i> My Promo Codes</h4>
+                <div id="my-promo-codes-container">
+                    <div class="task-loading"><i class="fas fa-spinner fa-pulse"></i><p>Loading...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="promo-claim-modal" class="modal" style="display:none;">
+    <div class="modal-content blue-modal" style="max-width:380px;width:92%;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);padding:0;">
+        <div class="modal-header blue-header" style="padding:16px 20px;border-bottom:1px solid rgba(59,130,246,0.1);">
+            <h3 style="color:#60A5FA;font-size:1.1rem;display:flex;align-items:center;gap:10px;margin:0;"><i class="fas fa-gift" style="color:#3B82F6;"></i> Claim Promo Code</h3>
+            <button class="modal-close" onclick="document.getElementById('promo-claim-modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <div id="promo-claim-content"></div>
         </div>
     </div>
 </div>
@@ -176,7 +266,7 @@
             <div class="form-group">
                 <label class="form-label">Amount <span style="color:#888;font-size:0.6rem;">(Click to copy)</span></label>
                 <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.4);padding:8px 14px;border-radius:40px;border:1px solid rgba(59,130,246,0.08);cursor:pointer;" id="payment-amount-display" onclick="window.app?.copyToClipboard(this.textContent)">
-                    <span style="font-size:0.8rem;font-family:monospace;color:#60A5FA;font-weight:600;flex:1;">0.0000 DOGS</span>
+                    <span style="font-size:0.8rem;font-family:monospace;color:#60A5FA;font-weight:600;flex:1;">0.0000 GRAM</span>
                 </div>
             </div>
             <a id="tonkeeper-link" href="#" target="_blank" class="blue-btn" style="display:block;text-align:center;padding:12px;border:none;border-radius:60px;font-weight:700;text-decoration:none;margin-bottom:10px;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;">Pay with Tonkeeper</a>
@@ -200,6 +290,20 @@
     </div>
 </div>
 
+<div id="my-special-tasks-modal" class="modal" style="display:none;">
+    <div class="modal-content blue-modal" style="max-width:400px;width:92%;max-height:90vh;overflow-y:auto;background:rgba(15,15,15,0.98);border-radius:24px;border:1px solid rgba(59,130,246,0.15);padding:0;">
+        <div class="modal-header blue-header" style="padding:16px 20px;border-bottom:1px solid rgba(59,130,246,0.1);">
+            <h3 style="color:#60A5FA;font-size:1.1rem;display:flex;align-items:center;gap:10px;margin:0;"><i class="fas fa-star" style="color:#3B82F6;"></i> My Special Tasks</h3>
+            <button class="modal-close" onclick="document.getElementById('my-special-tasks-modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <div id="my-special-tasks-container">
+                <div class="task-loading"><i class="fas fa-spinner fa-pulse"></i><p>Loading...</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script type="module" src="js/app.js"></script>
 </body>
-                                                                </html>
+</html>
