@@ -2305,7 +2305,7 @@ class App {
 
     showPromoPaymentModal() {
         const modal = document.getElementById('payment-modal');
-        if (!modal || !this.pendingPromoData) return;
+        if (!modal || !thisIDendingPromoData) return;
         if (!this.tgUser || !this.tgUser.id) {
             this.showNotification('Error', 'User not loaded. Please restart.', 'error');
             return;
@@ -2472,7 +2472,7 @@ class App {
                 watchBtn.disabled = true;
                 watchBtn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i>';
                 try {
-                    const AdController = window.Adsgram.init({ blockId: this.config.REWARD_AD_BLOCK_ID || "47678" });
+                    const AdController = window.Adsgram.init({ blockId: this.config.INTERSTITIAL_AD_BLOCK_ID || "47678" });
                     await AdController.show();
                     adWatched = true;
                     watchBtn.style.background = 'rgba(34,197,94,0.15)';
