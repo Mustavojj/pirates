@@ -3557,7 +3557,7 @@ class App {
 
         maxBtn?.addEventListener('click', () => {
             if (amountInput) {
-                amountInput.value = Math.min(Math.floor(this.dogsBalance), 3000);
+                amountInput.value = Math.min(Math.floor(this.dogsBalance), 5200);
                 updatePreview();
             }
         });
