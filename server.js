@@ -188,7 +188,7 @@ async function checkUserInChannel(userId, channelUsername) {
 const APP_CONFIG = {
     APP_NAME: "DOGS PIRATES 🏴‍☠️",
     BOT_USERNAME: "DogsPtsbot",
-    MINIMUM_WITHDRAW: 500,
+    MINIMUM_WITHDRAW: 700,
     WITHDRAWAL_FEES: 200,
     REFERRAL_PERCENTAGE: 10,
     MINING_SESSION_HOURS: 12,
