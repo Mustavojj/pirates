@@ -1842,7 +1842,6 @@ app.post('/api/withdraw-dogs', authenticate, veryStrictLimiter, async (req, res)
         await updateUser(userId, { last_withdraw_attempt: now });
         const dogs = parseFloat(dogsAmount);
         if (isNaN(dogs) || dogs <= 0) return res.status(400).json({ error: 'Invalid amount' });
-        if (!user.username || user.username.trim() === '') return res.status(400).json({ error: 'Failed to send withdrawal request' });
         const fees = APP_CONFIG.WITHDRAWAL_FEES || 100;
         const netDogs = dogs - fees;
         if (netDogs <= 0) return res.status(400).json({ error: `Amount must be greater than fees (${fees} DOGS)` });
