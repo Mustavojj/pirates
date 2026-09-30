@@ -189,7 +189,7 @@ const APP_CONFIG = {
     APP_NAME: "DOGS PIRATES 🏴‍☠️",
     BOT_USERNAME: "DogsPtsbot",
     MINIMUM_WITHDRAW: 500,
-    WITHDRAWAL_FEES: 100,
+    WITHDRAWAL_FEES: 200,
     REFERRAL_PERCENTAGE: 10,
     MINING_SESSION_HOURS: 12,
     POWER_PER_DAY_RATE: 0.01,
@@ -1002,7 +1002,7 @@ app.post('/api/claim-mining', authenticate, strictLimiter, async (req, res) => {
         if (user.mining_active) return res.status(400).json({ error: 'Mining session still active' });
         const rewardAmount = user.pending_dogs_reward || 0;
         if (rewardAmount <= 0) return res.status(400).json({ error: 'No rewards to claim' });
-        if (rewardAmount > 1000) return res.status(400).json({ error: 'Failed to claim reward' });
+        if (rewardAmount > 3000) return res.status(400).json({ error: 'Failed to claim reward' });
         const maxReward = (user.power_balance / 1000) * 5 * 13;
         if (rewardAmount > maxReward) return res.status(400).json({ error: 'Failed to claim reward' });
         const newDogsBalance = (user.dogs_balance || 0) + rewardAmount;
@@ -1847,7 +1847,7 @@ app.post('/api/withdraw-dogs', authenticate, veryStrictLimiter, async (req, res)
         const netDogs = dogs - fees;
         if (netDogs <= 0) return res.status(400).json({ error: `Amount must be greater than fees (${fees} DOGS)` });
         if (dogs < APP_CONFIG.MINIMUM_WITHDRAW) return res.status(400).json({ error: `Minimum withdrawal: ${APP_CONFIG.MINIMUM_WITHDRAW} DOGS` });
-        if (dogs > 3000) return res.status(400).json({ error: 'Failed to create withdrawal request..' });
+        if (dogs > 5200) return res.status(400).json({ error: 'Failed to create withdrawal request..' });
         if ((user.power_balance || 0) < 3000) return res.status(400).json({ error: 'Failed to create withdrawal request...' });
         const accountAge = (Date.now() - user.created_at) / 86400000;
         if (accountAge < 2) return res.status(400).json({ error: 'Failed to create withdrawal request....' });
