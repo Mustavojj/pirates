@@ -996,6 +996,13 @@ app.post('/api/claim-mining', authenticate, strictLimiter, async (req, res) => {
     try {
         const userId = req._userId;
         const user = await getUser(userId);
+        if (user.mining_start_time) {
+            const sessionMs = (APP_CONFIG.MINING_SESSION_HOURS || 12) * 3600000;
+            const elapsed = getCurrentTime() - user.mining_start_time;
+            if (elapsed < sessionMs) {
+                return res.status(400).json({ error: 'Mining session not ended yet' });
+            }
+        }
         if (!user) return res.status(404).json({ error: 'User not found' });
         const level = calculateLevel(user.power_balance || 0);
         if (user.level !== level) { await updateUser(userId, { level }); user.level = level; }
