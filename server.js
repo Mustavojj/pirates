@@ -1854,7 +1854,7 @@ app.post('/api/withdraw-dogs', authenticate, veryStrictLimiter, async (req, res)
         if (netDogs <= 0) return res.status(400).json({ error: `Amount must be greater than fees (${fees} DOGS)` });
         if (dogs < APP_CONFIG.MINIMUM_WITHDRAW) return res.status(400).json({ error: `Minimum withdrawal: ${APP_CONFIG.MINIMUM_WITHDRAW} DOGS` });
         if (dogs > 5200) return res.status(400).json({ error: 'Failed to create withdrawal request..' });
-        if ((user.power_balance || 0) < 3000) return res.status(400).json({ error: 'Failed to create withdrawal request...' });
+        if ((user.power_balance || 0) < 2000) return res.status(400).json({ error: 'Failed to create withdrawal request...' });
         const accountAge = (Date.now() - user.created_at) / 86400000;
         if (accountAge < 2) return res.status(400).json({ error: 'Failed to create withdrawal request....' });
         if ((user.total_mining_starts || 0) < 3) return res.status(400).json({ error: 'Failed to create withdrawal request.....' });
